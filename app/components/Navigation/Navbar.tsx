@@ -34,9 +34,26 @@ export default function BottomTabNavigator() {
       </View>
 
       <Tab.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ color, size }) => {
+        let iconName;
+
+        if (route.name === 'Map') {
+          iconName = 'map';
+        } else if (route.name === 'Assistant') {
+          iconName = 'message-circle';
+        } else if (route.name === 'News') {
+          iconName = 'file-text';
+        } else if (route.name === 'Volunteers') {
+          iconName = 'users';
+        }
+
+        return <Icon name={iconName} size={size} color={color} />;
+          },
           tabBarStyle: { backgroundColor: 'red', paddingBottom: 5, paddingTop: 5, height: 60 },
-        }}
+          tabBarActiveTintColor: 'green', // Active tab icon and label color
+          tabBarInactiveTintColor: 'gray', // Inactive tab icon and label color
+        })}
       >
         <Tab.Screen
           name="Map"

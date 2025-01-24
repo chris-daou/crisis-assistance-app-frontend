@@ -7,7 +7,6 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>This is the map</Text>
-      <Button title="Go to Assistant" onPress={() => navigation.dispatch(DrawerActions.openDrawer())} />
     </View>
   );
 }
