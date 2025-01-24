@@ -127,6 +127,6 @@ const styles = StyleSheet.create({
   signup : {
     color : "red",
     fontSize : 13,
-    fontWeight: "bold"  // Add styling as needed
+    fontWeight: "bold" 
   }
 })
