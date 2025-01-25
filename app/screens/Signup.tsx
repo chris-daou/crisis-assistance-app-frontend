@@ -33,19 +33,37 @@ export default function SignupForm() {
                         <TextInput
                             style={styles.input}
                             placeholder="Phone Number"
-                            value={getPhoneValue()}
+                            value={isPhoneFocused || phoneNumber ? `+961${phoneNumber}` : ""}
                             onFocus={() => setIsPhoneFocused(true)}
-                            onBlur={() => {
-                                setIsPhoneFocused(false);
-                                if (!phoneNumber) setPhoneNumber(""); // Clear completely if empty
-                            }}
+                            onBlur={() => setIsPhoneFocused(false)}
                             onChangeText={(text) => {
-                                if (text === "+961" || text === "") {
-                                    // If the user clears the input or only +961 is left, reset state
+                                const prefix = "+961";
+                                let cleanedInput = text.startsWith(prefix)
+                                    ? text.slice(prefix.length).replace(/\s/g, "")
+                                    : text.replace(/\s/g, "");
+                                const validPrefixes = {
+                                    "3": 6,
+                                    "70": 6,
+                                    "71": 6,
+                                    "76": 6,
+                                    "78": 6,
+                                    "79": 6,
+                                    "81": 6,
+                                };
+                                const isValidPartialPrefix = Object.keys(validPrefixes).some((validPrefix) =>
+                                    validPrefix.startsWith(cleanedInput) || cleanedInput.startsWith(validPrefix)
+                                );
+                                const matchingPrefix = Object.keys(validPrefixes).find((validPrefix) =>
+                                    cleanedInput.startsWith(validPrefix)
+                                );
+                                if (isValidPartialPrefix) {
+                                    const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
+                                    const maxLength = matchingPrefix ? validPrefixes[matchingPrefix as keyof typeof validPrefixes] : 6;
+                                    if (cleanedInput.length <= prefixLength + maxLength) {
+                                        setPhoneNumber(cleanedInput);
+                                    }
+                                } else if (cleanedInput === "") {
                                     setPhoneNumber("");
-                                } else if (text.startsWith("+961")) {
-                                    // Ensure only the digits after +961 are stored
-                                    setPhoneNumber(text.replace("+961", ""));
                                 }
                             }}
                             keyboardType="phone-pad"
