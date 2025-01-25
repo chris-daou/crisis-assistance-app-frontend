@@ -1,19 +1,52 @@
-import React, { useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons'; // Add icons for dropdown arrows
+
 const logo = require('../assets/logo.png');
 
 export default function SignupForm() {
     const [click, setClick] = useState(false);
-    const [username, setUsername] = useState("");
+    const [firstname, setFirstname] = useState("");
+    const [lastname, setLastname] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+    const [bloodType, setBloodType] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState(0);
 
-    const getPhoneValue = () => {
-        if (isPhoneFocused || phoneNumber) {
-            return `+961${phoneNumber}`; // Show "+961" and user input when focused or input exists
+    const scrollViewRef = useRef<ScrollView>(null);
+
+    const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+    const handleDropdownLayout = (event: any) => {
+        const { y } = event.nativeEvent.layout;
+        setDropdownPosition(y);
+    };
+
+    const handleDropdownOpen = () => {
+        setIsDropdownOpen(!isDropdownOpen);
+        if (!isDropdownOpen) {
+            scrollViewRef.current?.scrollTo({
+                y: dropdownPosition - 50 + 300, // Adjust for some margin above
+                animated: true,
+            });
         }
-        return ""; // Otherwise, show nothing and allow placeholder
     };
 
     return (
@@ -21,23 +54,27 @@ export default function SignupForm() {
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                ref={scrollViewRef}
+                keyboardShouldPersistTaps="handled"
+            >
                 <SafeAreaView style={styles.container}>
                     <Image source={logo} style={styles.image} resizeMode="contain" />
                     <Text style={styles.title}>Signup</Text>
                     <View style={styles.inputView}>
-                        <TextInput style={styles.input} placeholder="First Name" value={username} onChangeText={setUsername} autoCorrect={false} autoCapitalize="none" />
-                        <TextInput style={styles.input} placeholder="Last Name" value={username} onChangeText={setUsername} autoCorrect={false} autoCapitalize="none" />
+                        <TextInput style={styles.input} placeholder="First Name" value={firstname} onChangeText={setFirstname} autoCorrect={false} autoCapitalize="none" />
+                        <TextInput style={styles.input} placeholder="Last Name" value={lastname} onChangeText={setLastname} autoCorrect={false} autoCapitalize="none" />
                         <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} autoCorrect={false} autoCapitalize="none" />
-                        <TextInput style={styles.input} placeholder="Confirm Password" secureTextEntry value={password} onChangeText={setPassword} autoCorrect={false} autoCapitalize="none" />
+                        <TextInput style={styles.input} placeholder="Confirm Password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} autoCorrect={false} autoCapitalize="none" />
                         <TextInput
                             style={styles.input}
                             placeholder="Phone Number"
-                            value={isPhoneFocused || phoneNumber ? `+961${phoneNumber}` : ""}
+                            value={isPhoneFocused || phoneNumber ? `🇱🇧  +961 ${phoneNumber}` : ""}
                             onFocus={() => setIsPhoneFocused(true)}
                             onBlur={() => setIsPhoneFocused(false)}
                             onChangeText={(text) => {
-                                const prefix = "+961";
+                                const prefix = "🇱🇧  +961 ";
                                 let cleanedInput = text.startsWith(prefix)
                                     ? text.slice(prefix.length).replace(/\s/g, "")
                                     : text.replace(/\s/g, "");
@@ -71,18 +108,38 @@ export default function SignupForm() {
                             autoCapitalize="none"
                         />
 
-                    </View>
+                        {/* Blood Type Dropdown */}
+                        <TouchableOpacity
+                            style={[styles.input, styles.dropdown]}
+                            onPress={handleDropdownOpen}
+                            onLayout={handleDropdownLayout}
+                        >
+                            <Text style={[styles.placeholder, bloodType ? styles.selectedText : null]}>
+                                {bloodType || "Select Blood Type"}
+                            </Text>
+                            <MaterialIcons
+                                name={isDropdownOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                                size={24}
+                                color="black"
+                                style={styles.arrowIcon}
+                            />
+                        </TouchableOpacity>
 
-                    <View style={styles.rememberView}>
-                        <View style={styles.switch}>
-                            <Switch value={click} onValueChange={setClick} trackColor={{ true: "green", false: "gray" }} />
-                            <Text style={styles.rememberText}>Remember Me</Text>
-                        </View>
-                        <View>
-                            <Pressable onPress={() => Alert.alert("Forget Password!")}>
-                                <Text style={styles.forgetText}>Forgot Password?</Text>
-                            </Pressable>
-                        </View>
+                        {isDropdownOpen && (
+                            <View style={styles.dropdownMenu}>
+                                {bloodTypes.map((type) => (
+                                    <TouchableOpacity
+                                        key={type}
+                                        onPress={() => {
+                                            setBloodType(type);
+                                            setIsDropdownOpen(false);
+                                        }}
+                                    >
+                                        <Text style={styles.dropdownItem}>{type}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.buttonView}>
@@ -93,7 +150,6 @@ export default function SignupForm() {
 
                     <View style={{ flexGrow: 1 }}></View>
 
-                    {/* Single Text component for both "Already Have Account?" and "Login" */}
                     <Text style={styles.footerText}>
                         Already Have An Account?
                         <Text onPress={() => Alert.alert("Login!")} style={styles.signup}> Login</Text>
@@ -134,6 +190,39 @@ const styles = StyleSheet.create({
         borderColor: "red",
         borderWidth: 1,
         borderRadius: 7,
+        justifyContent: "center",
+        backgroundColor: "transparent",
+        fontSize: 16,
+        color: "black",
+    },
+    dropdown: {
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexDirection: "row",
+    },
+    dropdownMenu: {
+        borderWidth: 1,
+        borderColor: "red",
+        borderRadius: 7,
+        marginTop: -10,
+    },
+    dropdownItem: {
+        padding: 15,
+        fontSize: 16,
+        color: "black",
+        borderBottomWidth: 1,
+        borderBottomColor: "#ccc",
+    },
+    arrowIcon: {
+        marginLeft: 10,
+        color: "black",
+    },
+    placeholder: {
+        color: "gray",
+        fontSize: 16,
+    },
+    selectedText: {
+        color: "black",
     },
     rememberView: {
         width: "100%",
