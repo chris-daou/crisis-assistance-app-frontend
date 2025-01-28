@@ -36,7 +36,7 @@ export default function BottomTabNavigator() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ color, size }) => {
-        let iconName;
+        let iconName: string = '';
 
         if (route.name === 'Map') {
           iconName = 'map';
