@@ -26,3 +26,4 @@ build/
 Thumbs.db
 
 .env
+yarn.lock
