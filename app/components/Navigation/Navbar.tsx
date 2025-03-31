@@ -8,7 +8,7 @@ import { TouchableOpacity, StyleSheet, View } from 'react-native'; // Remove unu
 import Icon from 'react-native-vector-icons/Feather'; // Import Feather icon
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { DrawerParamList } from './Drawer';
+import { RootStackParamList } from './Drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabParamList = {
@@ -21,7 +21,7 @@ type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export default function BottomTabNavigator() {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
   return (

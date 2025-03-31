@@ -8,18 +8,19 @@ import {
     SafeAreaView,
     ScrollView,
     StyleSheet,
-    Switch,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons'; // Add icons for dropdown arrows
+import api from '../../api'; // Import Axios instance
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { RootStackParamList } from '../components/Navigation/Drawer';
 
 const logo = require('../assets/logo.png');
 
 export default function SignupForm() {
-    const [click, setClick] = useState(false);
     const [firstname, setFirstname] = useState("");
     const [lastname, setLastname] = useState("");
     const [password, setPassword] = useState("");
@@ -30,6 +31,7 @@ export default function SignupForm() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState(0);
 
+    const navigation = useNavigation<NavigationProp<RootStackParamList>>();
     const scrollViewRef = useRef<ScrollView>(null);
 
     const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -46,6 +48,40 @@ export default function SignupForm() {
                 y: dropdownPosition - 50 + 300, // Adjust for some margin above
                 animated: true,
             });
+        }
+    };
+
+    const handleSignup = async() => {
+        console.log("Signup Data:", { firstname, lastname, password, confirmPassword, phoneNumber, bloodType });
+        if (!firstname || !lastname || !password || !confirmPassword || !phoneNumber || !bloodType) {
+            Alert.alert("Please fill all fields!");
+            return;
+        }
+        if (password !== confirmPassword) {
+            Alert.alert("Passwords do not match!");
+            return;
+        }
+        setFirstname(firstname.charAt(0).toUpperCase() + firstname.slice(1).toLowerCase());
+        setLastname(lastname.charAt(0).toUpperCase() + lastname.slice(1).toLowerCase());
+        try{
+            const response = await api.post("auth/signup", {
+                name:firstname,
+                lastname,
+                password,
+                phone:"+961"+phoneNumber,
+                bloodType,
+            });
+            if(response.status===200){
+                console.log("✅ Signup Successful:", response.data);
+                navigation.navigate("Otp", { phone: "+961" + phoneNumber });
+            }
+            else{
+                Alert.alert("Signup Failed!");
+            }
+        }
+        catch(error){
+            console.error("❌ Signup Failed:", error);
+            Alert.alert("Signup Failed!");
         }
     };
 
@@ -143,7 +179,7 @@ export default function SignupForm() {
                     </View>
 
                     <View style={styles.buttonView}>
-                        <Pressable style={styles.button} onPress={() => Alert.alert("Signup Successfully!")}>
+                        <Pressable style={styles.button} onPress={handleSignup}>
                             <Text style={styles.buttonText}>SIGNUP</Text>
                         </Pressable>
                     </View>
@@ -152,7 +188,7 @@ export default function SignupForm() {
 
                     <Text style={styles.footerText}>
                         Already Have An Account?
-                        <Text onPress={() => Alert.alert("Login!")} style={styles.signup}> Login</Text>
+                        <Text onPress={() => navigation.navigate("Login" as never)} style={styles.signup}> Login</Text>
                     </Text>
                 </SafeAreaView>
             </ScrollView>

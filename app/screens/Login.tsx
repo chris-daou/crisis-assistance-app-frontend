@@ -1,19 +1,91 @@
 import React, { useState } from 'react'
 import { Alert, Image, Pressable, SafeAreaView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 const logo = require('../assets/logo.png')
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { RootStackParamList } from '../components/Navigation/Drawer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../api';
 
 export default function LoginForm() {
     const [click,setClick] = useState(false);
-    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+
+    const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+
+    // Function to handle login
+    const handleLogin = async () => {
+        try {
+            // Simulate a login API call
+            console.log("Logging in with:", { phoneNumber, password })
+            const response = await api.post("auth/login",{
+              phone:"+961"+phoneNumber,
+              password
+            });
+            if (response.status === 200) {
+                console.log("Login successful:", response.data);
+                await AsyncStorage.setItem('token', JSON.stringify(response.data.accessToken));
+                await AsyncStorage.setItem('user', JSON.stringify(response.data.user._id));
+                navigation.navigate("Map" as never);
+                const savedUser = await AsyncStorage.getItem("token");
+                console.log("Saved user:", savedUser);
+            } else {
+                Alert.alert("Login Failed", response.data.message || "Invalid credentials");
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            Alert.alert("Login Failed", "An error occurred. Please try again.");
+        }
+    };
+
+
   return (
     <SafeAreaView style={styles.container}>
         
         <Image source={logo} style={styles.image} resizeMode='contain' />
         <Text style={styles.title}>Login</Text>
         <View style={styles.inputView}>
-            <TextInput style={styles.input} placeholder='EMAIL OR USERNAME' value={username} onChangeText={setUsername} autoCorrect={false}
-        autoCapitalize='none' />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Phone Number"
+                            value={isPhoneFocused || phoneNumber ? `🇱🇧  +961 ${phoneNumber}` : ""}
+                            onFocus={() => setIsPhoneFocused(true)}
+                            onBlur={() => setIsPhoneFocused(false)}
+                            onChangeText={(text) => {
+                                const prefix = "🇱🇧  +961 ";
+                                let cleanedInput = text.startsWith(prefix)
+                                    ? text.slice(prefix.length).replace(/\s/g, "")
+                                    : text.replace(/\s/g, "");
+                                const validPrefixes = {
+                                    "3": 6,
+                                    "70": 6,
+                                    "71": 6,
+                                    "76": 6,
+                                    "78": 6,
+                                    "79": 6,
+                                    "81": 6,
+                                };
+                                const isValidPartialPrefix = Object.keys(validPrefixes).some((validPrefix) =>
+                                    validPrefix.startsWith(cleanedInput) || cleanedInput.startsWith(validPrefix)
+                                );
+                                const matchingPrefix = Object.keys(validPrefixes).find((validPrefix) =>
+                                    cleanedInput.startsWith(validPrefix)
+                                );
+                                if (isValidPartialPrefix) {
+                                    const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
+                                    const maxLength = matchingPrefix ? validPrefixes[matchingPrefix as keyof typeof validPrefixes] : 6;
+                                    if (cleanedInput.length <= prefixLength + maxLength) {
+                                        setPhoneNumber(cleanedInput);
+                                    }
+                                } else if (cleanedInput === "") {
+                                    setPhoneNumber("");
+                                }
+                            }}
+                            keyboardType="phone-pad"
+                            autoCorrect={false}
+                            autoCapitalize="none"
+                        />
             <TextInput style={styles.input} placeholder='PASSWORD' secureTextEntry value={password} onChangeText={setPassword} autoCorrect={false}
         autoCapitalize='none'/>
         </View>
@@ -30,7 +102,7 @@ export default function LoginForm() {
         </View>
 
         <View style={styles.buttonView}>
-            <Pressable style={styles.button} onPress={() => Alert.alert("Login Successfully!")}>
+            <Pressable style={styles.button} onPress={() => handleLogin()}>
                 <Text style={styles.buttonText}>LOGIN</Text>
             </Pressable>
         </View>
@@ -39,8 +111,8 @@ export default function LoginForm() {
 
         {/* Single Text component for both "Don't Have Account?" and "Sign Up" */}
         <Text style={styles.footerText}>
-            Don't Have Account? 
-            <Text onPress={() => Alert.alert("Sign Up!")} style={styles.signup}> Sign Up</Text>
+            Don't Have an Account? 
+            <Text onPress={() => navigation.navigate("Signup" as never)} style={styles.signup}> Sign Up</Text>
         </Text>
         
     </SafeAreaView>

@@ -2,150 +2,177 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ActivityIndicator, Alert, Text } from 'react-native';
 import MapView, { Marker, Callout, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { FontAwesome5 } from '@expo/vector-icons'; // Using FontAwesome5 for hospital icon
-import { GOOGLE_MAPS_API_KEY } from '@env';
+import * as TaskManager from 'expo-task-manager';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { GOOGLE_MAPS_API_KEY, BACKEND_URL } from '@env';
+import io, { Socket } from 'socket.io-client';
+
+
+
+const SOCKET_SERVER_URL = `${BACKEND_URL}`;
+const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
+
+interface Place {
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  name: string;
+  vicinity: string;
+}
 
 export default function MapScreen() {
-  const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
-  interface Hospital {
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      };
-    };
-    name: string;
-    vicinity: string;
-  }
-
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [hospitals, setHospitals] = useState<Place[]>([]);
   const [shelters, setShelters] = useState<Place[]>([]);
-  interface Place {
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      };
-    };
-    name: string;
-    vicinity: string;
-  }
-
   const [freeFoodOrgs, setFreeFoodOrgs] = useState<Place[]>([]);
-  
+  const [loading, setLoading] = useState(true);
+
+  let socket: Socket | null = null;
 
   useEffect(() => {
-    let locationSubscription: { remove: any } | null = null;
-
-    const requestLocationPermission = async () => {
-      setLoading(true);
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location access is required to find nearby hospitals.');
-        setLoading(false);
-        return;
-      }
-
-      // Get user's current location
-      let userLocation = await Location.getCurrentPositionAsync({});
-      setLocation(userLocation.coords);
-
-      // Set the initial region **only once** to prevent unwanted re-centering
-      setInitialRegion({
-        latitude: userLocation.coords.latitude,
-        longitude: userLocation.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-
-      // Fetch nearby hospitals
-      fetchNearbyHospitals(userLocation.coords.latitude, userLocation.coords.longitude);
-      fetchNearbyShelters(userLocation.coords.latitude, userLocation.coords.longitude);
-      fetchNearbyFreeFoodOrgs(userLocation.coords.latitude, userLocation.coords.longitude);
-
-      // Start live tracking
-      locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 5000, // Update every 5 seconds
-          distanceInterval: 10, // Update every 10 meters
-        },
-        (newLocation) => {
-          setLocation(newLocation.coords);
-          fetchNearbyHospitals(newLocation.coords.latitude, newLocation.coords.longitude);
+    const setupLocationTracking = async () => {
+      try {
+        // Request foreground permission
+        const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+        if (foregroundStatus !== 'granted') {
+          Alert.alert('Permission Denied', 'Location access is required to find nearby places.');
+          return;
         }
-      );
-
-      setLoading(false);
+    
+        // Request background permission (for iOS and Android)
+        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+        if (backgroundStatus !== 'granted') {
+          Alert.alert('Permission Denied', 'Background location access is required for live tracking.');
+          return;
+        }
+    
+        // Get user's current location
+        const userLocation = await Location.getCurrentPositionAsync({});
+        setInitialRegion({
+          latitude: userLocation.coords.latitude,
+          longitude: userLocation.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+    
+        // Fetch nearby places
+        fetchNearbyPlaces(userLocation.coords.latitude, userLocation.coords.longitude);
+    
+        // Initialize socket connection
+        socket = io(SOCKET_SERVER_URL);
+        socket.on('connect', () => {
+          console.log('Connected to socket server');
+        });
+    
+        // Watch user location for live updates
+        await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000, // Update every 5 seconds
+            distanceInterval: 10, // Update every 10 meters
+          },
+          (newLocation) => {
+            if (socket) {
+              socket.emit('locationUpdate', {
+                latitude: newLocation.coords.latitude,
+                longitude: newLocation.coords.longitude,
+              });
+            }
+            fetchNearbyPlaces(newLocation.coords.latitude, newLocation.coords.longitude);
+          }
+        );
+    
+        setLoading(false);
+    
+        // Start background location tracking after permission is granted and location is set
+        startBackgroundLocationTracking();
+      } catch (error) {
+        console.error('Error in location setup:', error);
+        setLoading(false);
+      }
     };
+    
 
-    requestLocationPermission();
+    setupLocationTracking();
 
+    // Clean up socket connection on unmount
     return () => {
-      if (locationSubscription) {
-        locationSubscription.remove(); // Stop tracking when unmounting
-      };
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, []);
 
-  // Function to fetch nearby hospitals using Google Places API
-  const fetchNearbyHospitals = async (latitude: number, longitude: number) => {
+  // Function to fetch nearby hospitals, shelters, and free food organizations
+  const fetchNearbyPlaces = async (latitude: number, longitude: number) => {
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&keyword=hopital&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
+      const [hospitalsData, sheltersData, freeFoodData] = await Promise.all([
+        fetchNearbyHospitals(latitude, longitude),
+        fetchNearbyShelters(latitude, longitude),
+        fetchNearbyFreeFoodOrgs(latitude, longitude),
+      ]);
 
-      if (data.status === 'OK') {
-        // Filter out only hospitals
-        const filteredHospitals = data.results.filter((place: { types: string | string[]; }) =>
-          place.types.includes('hospital')
-        );
-
-        setHospitals(filteredHospitals);
-      } else {
-        console.error('Google Places API Error:', data.status);
-      }
+      setHospitals(hospitalsData);
+      setShelters(sheltersData);
+      setFreeFoodOrgs(freeFoodData);
     } catch (error) {
-      console.error('Error fetching hospitals:', error);
+      console.error('Error fetching places:', error);
     }
+  };
+
+  const fetchNearbyHospitals = async (latitude: number, longitude: number) => {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&keyword=hospital&key=${GOOGLE_MAPS_API_KEY}`
+    );
+    const data = await response.json();
+    return data.status === 'OK' ? data.results.filter((place: any) => place.types.includes('hospital')) : [];
   };
 
   const fetchNearbyShelters = async (latitude: number, longitude: number) => {
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=10000&keyword=Beirut%20Shelter&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-  
-      if (data.status === 'OK') {
-        setShelters(data.results);
-      } else {
-        console.error('Google Places API Error (Shelters):', data.status);
-      }
-    } catch (error) {
-      console.error('Error fetching shelters:', error);
-    }
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=10000&keyword=shelter&key=${GOOGLE_MAPS_API_KEY}`
+    );
+    const data = await response.json();
+    return data.status === 'OK' ? data.results : [];
   };
+
   const fetchNearbyFreeFoodOrgs = async (latitude: number, longitude: number) => {
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=free+food+distribution+charity+organization&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-  
-      if (data.status === 'OK') {
-        setFreeFoodOrgs(data.results);
-      } else {
-        console.error('Google Places API Error (Free Food):', data.status);
-      }
-    } catch (error) {
-      console.error('Error fetching free food organizations:', error);
-    }
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=free+food+charity&key=${GOOGLE_MAPS_API_KEY}`
+    );
+    const data = await response.json();
+    return data.status === 'OK' ? data.results : [];
   };
-  
+
+  // Function to start background location updates
+  const startBackgroundLocationTracking = () => {
+    TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
+      if (error) {
+        console.error('Background location error:', error);
+        return;
+      }
+
+      const { locations } = data;
+      if (locations && locations.length > 0) {
+        const { latitude, longitude } = locations[0].coords;
+        // Send location update to backend
+        if (socket) {
+          socket.emit('locationUpdate', { latitude, longitude });
+        }
+        fetchNearbyPlaces(latitude, longitude);
+      }
+    });
+
+    Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 5000, // Update every minute
+      distanceInterval: 10, // Update every 10 meters
+      showsBackgroundLocationIndicator: true, // For iOS
+    });
+  };
 
   // Show a loading screen until location is retrieved
   if (loading) {
@@ -158,83 +185,37 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-<MapView
-  style={styles.map}
-  initialRegion={initialRegion || undefined}
-  showsUserLocation={true}
-  provider="google"
->
-  {/* Render hospital markers */}
-  {hospitals.map((hospital, index) => (
-    <Marker
-      key={`hospital-${index}`}
-      coordinate={{
-        latitude: hospital.geometry.location.lat,
-        longitude: hospital.geometry.location.lng,
-      }}
-    >
-      <View style={styles.iconContainer}>
-        <FontAwesome5 name="hospital" size={24} color="red" />
-      </View>
-      <Callout>
-        <View style={styles.callout}>
-          <FontAwesome5 name="hospital" size={16} color="red" />
-          <Text style={styles.hospitalName}>{hospital.name}</Text>
-          <Text style={styles.hospitalVicinity}>{hospital.vicinity}</Text>
-        </View>
-      </Callout>
-    </Marker>
-  ))}
-
-  {/* Render shelter markers */}
-  {shelters.map((shelter, index) => (
-    <Marker
-      key={`shelter-${index}`}
-      coordinate={{
-        latitude: shelter.geometry.location.lat,
-        longitude: shelter.geometry.location.lng,
-      }}
-    >
-      <View style={styles.iconContainerShelter}>
-        <FontAwesome5 name="home" size={24} color="blue" />
-      </View>
-      <Callout>
-        <View style={styles.callout}>
-          <FontAwesome5 name="home" size={16} color="blue" />
-          <Text style={styles.shelterName}>{shelter.name}</Text>
-          <Text style={styles.shelterVicinity}>{shelter.vicinity}</Text>
-        </View>
-      </Callout>
-    </Marker>
-  ))}
-
-  {/* Render free food organization markers */}
-  {freeFoodOrgs.map((org, index) => (
-    <Marker
-      key={`food-${index}`}
-      coordinate={{
-        latitude: org.geometry.location.lat,
-        longitude: org.geometry.location.lng,
-      }}
-    >
-      <View style={styles.iconContainerFood}>
-        <FontAwesome5 name="utensils" size={24} color="green" />
-      </View>
-      <Callout>
-        <View style={styles.callout}>
-          <FontAwesome5 name="utensils" size={16} color="green" />
-          <Text style={styles.foodOrgName}>{org.name}</Text>
-          <Text style={styles.foodOrgVicinity}>{org.vicinity}</Text>
-        </View>
-      </Callout>
-    </Marker>
-  ))}
-</MapView>
-
-
+      <MapView
+        style={styles.map}
+        initialRegion={initialRegion || undefined}
+        showsUserLocation={true}
+        provider="google"
+      >
+        {/* Render markers for hospitals, shelters, and free food organizations */}
+        {renderMarkers(hospitals, 'hospital')}
+        {renderMarkers(shelters, 'home')}
+        {renderMarkers(freeFoodOrgs, 'utensils')}
+      </MapView>
     </View>
   );
 }
+
+// Helper function to render markers for places
+const renderMarkers = (places: Place[], iconName: string) => {
+  return places.map((place, index) => (
+    <Marker key={index} coordinate={{ latitude: place.geometry.location.lat, longitude: place.geometry.location.lng }}>
+      <View style={styles.iconContainer}>
+        <FontAwesome5 name={iconName} size={24} color="red" />
+      </View>
+      <Callout>
+        <View style={styles.callout}>
+          <Text style={styles.placeName}>{place.name}</Text>
+          <Text style={styles.placeVicinity}>{place.vicinity}</Text>
+        </View>
+      </Callout>
+    </Marker>
+  ));
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -256,51 +237,19 @@ const styles = StyleSheet.create({
     borderColor: 'red',
   },
   callout: {
-    width: 200, // Adjust width to make it more readable
+    width: 200,
     padding: 10,
     backgroundColor: 'white',
     borderRadius: 10,
     alignItems: 'center',
   },
-  
-  hospitalName: {
+  placeName: {
     fontWeight: 'bold',
     fontSize: 14,
   },
-  hospitalVicinity: {
+  placeVicinity: {
     fontSize: 12,
     color: 'gray',
   },
-  iconContainerShelter: {
-    backgroundColor: 'white',
-    padding: 4,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: 'blue', // Different color for shelters
-  },
-  shelterName: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  shelterVicinity: {
-    fontSize: 12,
-    color: 'gray',
-  },
-  iconContainerFood: {
-    backgroundColor: 'white',
-    padding: 4,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: 'green', // Different color for free food organizations
-  },
-  foodOrgName: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  foodOrgVicinity: {
-    fontSize: 12,
-    color: 'gray',
-  },
-  
-  
 });
+

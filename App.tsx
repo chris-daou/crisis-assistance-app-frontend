@@ -1,8 +1,23 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import DrawerNavigator from './app/components/Navigation/Drawer';
+import React, { useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { View, Text } from "react-native";
+import DrawerNavigator from "./app/components/Navigation/Drawer";
+import api from "./api"; // Import Axios instance
 
 export default function App() {
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const response = await api.get("auth/test"); // Adjust route if needed
+        console.log("✅ Backend Connected Successfully:", response.data);
+      } catch (error) {
+        console.error("❌ Backend Connection Failed:", error);
+      }
+    };
+
+    testConnection();
+  }, []);
+
   return (
     <NavigationContainer>
       <DrawerNavigator />
