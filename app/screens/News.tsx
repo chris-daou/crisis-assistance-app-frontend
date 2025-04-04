@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,
+    marginBottom: 40,
   },
   card: {
     flexDirection: 'column', // Changed from 'row' to 'column'
