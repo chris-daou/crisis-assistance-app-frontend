@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert, Text } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Alert, Text, TouchableOpacity, Linking } from 'react-native';
 import MapView, { Marker, Callout, Region } from 'react-native-maps';
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { GOOGLE_MAPS_API_KEY, BACKEND_URL } from '@env';
-import io, { Socket } from 'socket.io-client';
-
-
-
-const SOCKET_SERVER_URL = `${BACKEND_URL}`;
-const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
+import * as Location from 'expo-location'; // Import Expo Location for geolocation
+import { GOOGLE_MAPS_API_KEY } from '@env';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { RootStackParamList } from '../components/Navigation/Drawer';
 
 interface Place {
+  types: any;
   geometry: {
     location: {
       lat: number;
@@ -24,121 +21,93 @@ interface Place {
 }
 
 export default function MapScreen() {
+  // --- State Variables ---
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
-  const [hospitals, setHospitals] = useState<Place[]>([]);
-  const [shelters, setShelters] = useState<Place[]>([]);
-  const [freeFoodOrgs, setFreeFoodOrgs] = useState<Place[]>([]);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeButton, setActiveButton] = useState<'hospitals' | 'shelters' | 'freeFood' | 'none'>('none');
+  const [fetchingInProgress, setFetchingInProgress] = useState(false);
 
-  let socket: Socket | null = null;
+  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
 
+  // Map Type state
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+
+  // --- Fetch User Location ---
   useEffect(() => {
-    const setupLocationTracking = async () => {
-      try {
-        // Request foreground permission
-        const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-        if (foregroundStatus !== 'granted') {
-          Alert.alert('Permission Denied', 'Location access is required to find nearby places.');
-          return;
-        }
-    
-        // Request background permission (for iOS and Android)
-        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-        if (backgroundStatus !== 'granted') {
-          Alert.alert('Permission Denied', 'Background location access is required for live tracking.');
-          return;
-        }
-    
-        // Get user's current location
-        const userLocation = await Location.getCurrentPositionAsync({});
-        setInitialRegion({
-          latitude: userLocation.coords.latitude,
-          longitude: userLocation.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-    
-        // Fetch nearby places
-        fetchNearbyPlaces(userLocation.coords.latitude, userLocation.coords.longitude);
-    
-        // Initialize socket connection
-        socket = io(SOCKET_SERVER_URL);
-        socket.on('connect', () => {
-          console.log('Connected to socket server');
-        });
-    
-        // Watch user location for live updates
-        await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000, // Update every 5 seconds
-            distanceInterval: 10, // Update every 10 meters
-          },
-          (newLocation) => {
-            if (socket) {
-              socket.emit('locationUpdate', {
-                latitude: newLocation.coords.latitude,
-                longitude: newLocation.coords.longitude,
-              });
-            }
-            fetchNearbyPlaces(newLocation.coords.latitude, newLocation.coords.longitude);
-          }
-        );
-    
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied');
         setLoading(false);
-    
-        // Start background location tracking after permission is granted and location is set
-        startBackgroundLocationTracking();
-      } catch (error) {
-        console.error('Error in location setup:', error);
-        setLoading(false);
+        return;
       }
-    };
-    
-
-    setupLocationTracking();
-
-    // Clean up socket connection on unmount
-    return () => {
-      if (socket) {
-        socket.disconnect();
-      }
-    };
+      const location = await Location.getCurrentPositionAsync({});
+      const regionData = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+      setInitialRegion(regionData);
+      setLoading(false);
+    })();
   }, []);
 
-  // Function to fetch nearby hospitals, shelters, and free food organizations
-  const fetchNearbyPlaces = async (latitude: number, longitude: number) => {
-    try {
-      const [hospitalsData, sheltersData, freeFoodData] = await Promise.all([
-        fetchNearbyHospitals(latitude, longitude),
-        fetchNearbyShelters(latitude, longitude),
-        fetchNearbyFreeFoodOrgs(latitude, longitude),
-      ]);
-
-      setHospitals(hospitalsData);
-      setShelters(sheltersData);
-      setFreeFoodOrgs(freeFoodData);
-    } catch (error) {
-      console.error('Error fetching places:', error);
+  // --- Fetch Places Once Initial Region is Set ---
+  useEffect(() => {
+    if (initialRegion) {
+      setRegion(initialRegion);
+      // Only fetch the places when initial region is available
+      if (activeButton !== 'none') {
+        fetchPlaces(initialRegion.latitude, initialRegion.longitude);
+      }
     }
+  }, [initialRegion, activeButton]);  // Now listens to activeButton as well
+
+  // --- Fetch Places Based on Active Button ---
+  const fetchPlaces = async (latitude: number, longitude: number) => {
+    if (fetchingInProgress) return;
+    setFetchingInProgress(true);
+    let fetchedPlaces: Place[] = [];
+
+    // Clear previous places to avoid clutter
+    setPlaces([]);
+
+    if (activeButton === 'hospitals') {
+      fetchedPlaces = await fetchNearbyHospitals(latitude, longitude);
+    } else if (activeButton === 'shelters') {
+      fetchedPlaces = await fetchNearbyShelters(latitude, longitude);
+    } else if (activeButton === 'freeFood') {
+      fetchedPlaces = await fetchNearbyFreeFoodOrgs(latitude, longitude);
+    }
+
+    setPlaces(fetchedPlaces);
+    setFetchingInProgress(false);
   };
 
+  // --- Fetch Nearby Hospitals ---
   const fetchNearbyHospitals = async (latitude: number, longitude: number) => {
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&keyword=hospital&key=${GOOGLE_MAPS_API_KEY}`
+      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&keyword=hospital-hopital&key=${GOOGLE_MAPS_API_KEY}`
     );
     const data = await response.json();
-    return data.status === 'OK' ? data.results.filter((place: any) => place.types.includes('hospital')) : [];
+    return data.status === 'OK'
+      ? data.results.filter((place: any) => place.types.includes('hospital'))
+      : [];
   };
 
+  // --- Fetch Nearby Shelters ---
   const fetchNearbyShelters = async (latitude: number, longitude: number) => {
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=10000&keyword=shelter&key=${GOOGLE_MAPS_API_KEY}`
+      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=Beirut+Shelter&key=${GOOGLE_MAPS_API_KEY}`
     );
     const data = await response.json();
     return data.status === 'OK' ? data.results : [];
   };
 
+  // --- Fetch Nearby Free Food Organizations ---
   const fetchNearbyFreeFoodOrgs = async (latitude: number, longitude: number) => {
     const response = await fetch(
       `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=free+food+charity&key=${GOOGLE_MAPS_API_KEY}`
@@ -147,34 +116,41 @@ export default function MapScreen() {
     return data.status === 'OK' ? data.results : [];
   };
 
-  // Function to start background location updates
-  const startBackgroundLocationTracking = () => {
-    TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
-      if (error) {
-        console.error('Background location error:', error);
-        return;
-      }
-
-      const { locations } = data;
-      if (locations && locations.length > 0) {
-        const { latitude, longitude } = locations[0].coords;
-        // Send location update to backend
-        if (socket) {
-          socket.emit('locationUpdate', { latitude, longitude });
-        }
-        fetchNearbyPlaces(latitude, longitude);
-      }
-    });
-
-    Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 5000, // Update every minute
-      distanceInterval: 10, // Update every 10 meters
-      showsBackgroundLocationIndicator: true, // For iOS
-    });
+  // --- Button Press Handler ---
+  const handleButtonPress = (button: 'hospitals' | 'shelters' | 'freeFood') => {
+    if (activeButton === button) {
+      setActiveButton('none');
+      setPlaces([]); // Clear places when button is deactivated
+    } else {
+      setActiveButton(button);
+    }
   };
 
-  // Show a loading screen until location is retrieved
+  // --- Recenter Map to User's Location ---
+  const recenterMap = () => {
+    if (initialRegion) {
+      setRegion({
+        latitude: initialRegion.latitude,
+        longitude: initialRegion.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+      fetchPlaces(initialRegion.latitude, initialRegion.longitude);
+    }
+  };
+
+  // --- Change Map Type ---
+  const changeMapType = () => {
+    if (mapType === 'standard') {
+      setMapType('satellite');
+    } else if (mapType === 'satellite') {
+      setMapType('hybrid');
+    } else {
+      setMapType('standard');
+    }
+  };
+
+  // --- Main Render ---
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -187,36 +163,112 @@ export default function MapScreen() {
     <View style={styles.container}>
       <MapView
         style={styles.map}
-        initialRegion={initialRegion || undefined}
+        region={region ?? initialRegion ?? undefined}
+        onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
         showsUserLocation={true}
         provider="google"
+        showsMyLocationButton={false}
+        showsBuildings={true}
+        toolbarEnabled={false}
+        mapType={mapType} // Pass mapType to the MapView
       >
-        {/* Render markers for hospitals, shelters, and free food organizations */}
-        {renderMarkers(hospitals, 'hospital')}
-        {renderMarkers(shelters, 'home')}
-        {renderMarkers(freeFoodOrgs, 'utensils')}
+        {renderMarkers(places)}
       </MapView>
+
+      {/* Recenter Button */}
+      <View style={styles.recenterButtonContainer}>
+        <TouchableOpacity style={styles.recenterButton} onPress={recenterMap}>
+          <FontAwesome5 name="crosshairs" size={25} color="gray" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Map Type Button */}
+      <View style={styles.maptypeButtonContainer}>
+        <TouchableOpacity style={styles.recenterButton} onPress={changeMapType}>
+          <FontAwesome5 name="layer-group" size={25} color="gray" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Menu Button */}
+      <View style={styles.menuButtonContainer}>
+        <TouchableOpacity style={styles.recenterButton} onPress={() => navigation.toggleDrawer()}>
+          <FontAwesome5 name="bars" size={25} color="black" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, activeButton === 'hospitals' && styles.activeButton]}
+          onPress={() => handleButtonPress('hospitals')}
+        >
+          <Text style={[styles.buttonText, activeButton === 'hospitals' && styles.activeButtonText]}>
+            Hospitals
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, activeButton === 'shelters' && styles.activeButton]}
+          onPress={() => handleButtonPress('shelters')}
+        >
+          <Text style={[styles.buttonText, activeButton === 'shelters' && styles.activeButtonText]}>
+            Shelters
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, activeButton === 'freeFood' && styles.activeButton]}
+          onPress={() => handleButtonPress('freeFood')}
+        >
+          <Text style={[styles.buttonText, activeButton === 'freeFood' && styles.activeButtonText]}>
+            Food Org.
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-// Helper function to render markers for places
-const renderMarkers = (places: Place[], iconName: string) => {
-  return places.map((place, index) => (
-    <Marker key={index} coordinate={{ latitude: place.geometry.location.lat, longitude: place.geometry.location.lng }}>
-      <View style={styles.iconContainer}>
-        <FontAwesome5 name={iconName} size={24} color="red" />
-      </View>
-      <Callout>
-        <View style={styles.callout}>
-          <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeVicinity}>{place.vicinity}</Text>
+// --- Helper Function to Render Markers ---
+const renderMarkers = (places: Place[]) => {
+  return places.map((place, index) => {
+    let iconName = 'map-marker-alt';
+    let iconColor = 'red';
+
+    if (place.types.includes('hospital')) {
+      iconName = 'hospital';
+      iconColor = 'blue';
+    } else if (place.types.includes('shelter')) {
+      iconName = 'home';
+      iconColor = 'green';
+    } else if (place.types.includes('free food')) {
+      iconName = 'utensils';
+      iconColor = 'orange';
+    }
+
+    const openNavigation = () => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat},${place.geometry.location.lng}&travelmode=driving`;
+      Linking.openURL(url);
+    };
+
+    return (
+      <Marker key={index} coordinate={{ latitude: place.geometry.location.lat, longitude: place.geometry.location.lng }}>
+        <View style={styles.iconContainer}>
+          <FontAwesome5 name={iconName} size={24} color={iconColor} />
         </View>
-      </Callout>
-    </Marker>
-  ));
+        <Callout tooltip>
+          <View style={styles.callout}>
+            <Text style={styles.placeName}>{place.name}</Text>
+            <Text style={styles.placeVicinity}>{place.vicinity}</Text>
+            <TouchableOpacity style={styles.customNavButton} onPress={openNavigation}>
+              <Text style={styles.customNavButtonText}>Navigate Here</Text>
+            </TouchableOpacity>
+          </View>
+        </Callout>
+      </Marker>
+    );
+  });
 };
 
+// --- Styles ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -228,6 +280,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: '3%',
+    right: '3%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  button: {
+    backgroundColor: '#EBEBEB',
+    paddingVertical: 10,
+    width: '32%',
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    bottom: 55,
+  },
+  activeButton: {
+    backgroundColor: 'gray',
+  },
+  buttonText: {
+    color: 'gray',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  activeButtonText: {
+    color: '#EBEBEB',
   },
   iconContainer: {
     backgroundColor: 'white',
@@ -251,5 +332,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'gray',
   },
+  customNavButton: {
+    marginTop: 10,
+    backgroundColor: '#f4f4f4',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customNavButtonText: {
+    color: 'gray',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  recenterButtonContainer: {
+    position: 'absolute',
+    top: 30,
+    left: 10,
+    backgroundColor: '#F4F4F4',
+    borderRadius: 100,
+    padding: 0,
+    zIndex: 1,
+  },
+  maptypeButtonContainer: {
+    position: 'absolute',
+    top: 90,
+    left: 10,
+    backgroundColor: '#F4F4F4',
+    borderRadius: 100,
+    padding: 0,
+    zIndex: 1,
+  },
+  menuButtonContainer: {
+    position: 'absolute',
+    top: 36,
+    right: 10,
+    borderRadius: 100,
+    padding: 0,
+    zIndex: 1,
+  },
+  recenterButton: {
+    padding: 10,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
-

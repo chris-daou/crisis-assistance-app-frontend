@@ -20,8 +20,25 @@ function DrawerNavigator() {
   return (
     <Drawer.Navigator
       screenOptions={{
-        drawerPosition: 'right',
+        
+        drawerPosition: 'right', // Position the drawer to the right
         headerShown: false,
+        swipeEnabled: false, // Disable swipe gesture to open the drawer
+        drawerType: 'front', // Use front drawer type
+        drawerActiveBackgroundColor: '#EBEBEB', // Active item background color
+        drawerActiveTintColor: '#000', // Active item color
+        drawerInactiveTintColor:'gray',
+        drawerStyle: {
+          backgroundColor: '#EBEBEB', // Drawer background color
+          borderTopLeftRadius: 20,   // Round top-left corner
+          borderBottomLeftRadius: 20, // Round bottom-left corner
+          borderTopRightRadius: 20,   // Keep top-right corner sharp
+          borderBottomRightRadius: 20, // Keep bottom-right corner sharp
+          transform: [{ translateX: 700,  }], // Move the drawer far off-screen (adjust as needed)
+          bottom: 65, // Align to the bottom
+          top: 30,
+          width:'50%',
+        },
       }}
     >
       <Drawer.Screen 

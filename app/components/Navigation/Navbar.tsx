@@ -27,54 +27,89 @@ export default function BottomTabNavigator() {
   return (
     <>
       {/* Custom header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={styles.menuButton}>
-          <Icon name="menu" size={28} color="black" />
-        </TouchableOpacity>
-      </View>
-
       <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ color, size }) => {
-        let iconName: string = '';
+  screenOptions={({ route }) => ({
+    tabBarIcon: ({ color, size }) => {
+      let iconName: string = '';
 
-        if (route.name === 'Map') {
-          iconName = 'map';
-        } else if (route.name === 'Assistant') {
-          iconName = 'message-circle';
-        } else if (route.name === 'News') {
-          iconName = 'file-text';
-        } else if (route.name === 'Volunteers') {
-          iconName = 'users';
-        }
+      if (route.name === 'Map') {
+        iconName = 'map';
+      } else if (route.name === 'Assistant') {
+        iconName = 'message-circle';
+      } else if (route.name === 'News') {
+        iconName = 'file-text';
+      } else if (route.name === 'Volunteers') {
+        iconName = 'users';
+      }
 
-        return <Icon name={iconName} size={size} color={color} />;
-          },
-          tabBarStyle: { backgroundColor: 'red', paddingBottom: 5, paddingTop: 5, height: 60 },
-          tabBarActiveTintColor: 'green', // Active tab icon and label color
-          tabBarInactiveTintColor: 'gray', // Inactive tab icon and label color
-        })}
-      >
-        <Tab.Screen
-          name="Map"
-          component={MapScreen}
-          options={{ tabBarLabel: 'Map', headerShown: false }}
-        />
-        <Tab.Screen
-          name="Assistant"
-          component={AssistantScreen}
-          options={{ tabBarLabel: 'Assistant', headerShown: false }}
-        />
-        <Tab.Screen
-          name="News"
-          component={NewsScreen}
-          options={{ tabBarLabel: 'News', headerShown: false }}
-        />
-        <Tab.Screen
-          name="Volunteers"
-          component={VolunteersScreen}
-          options={{ tabBarLabel: 'Volunteers', headerShown: false }}
-        />
+      return <Icon name={iconName} size={size} color={color} />;
+    },
+    tabBarStyle: {
+      backgroundColor: '#EBEBEB', // Make the bottom part white
+      paddingBottom: 5,
+      paddingTop: 5,
+      height: 60,
+      borderTopLeftRadius: 20, // Round top left corner
+      borderTopRightRadius: 20, // Round top right corner
+      borderBottomLeftRadius: 0, // Keep bottom left corner sharp
+      borderBottomRightRadius: 0, // Keep bottom right corner sharp
+      overflow: 'hidden', // Ensure content respects rounded corners
+      position: 'absolute', // Position the tab bar absolutely at the bottom
+      bottom: 0, // Stick it to the bottom
+      left: 0, // Align to the left
+      right: 0, // Align to the right
+    },
+    tabBarActiveTintColor: 'black', // Active tab icon and label color
+    tabBarInactiveTintColor: 'gray', // Inactive tab icon and label color
+  })}
+>
+
+
+
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+        tabBarLabel: 'Map',
+        headerShown: false, // No custom header for Volunteers
+        }}
+      />
+      <Tab.Screen
+        name="Assistant"
+        component={AssistantScreen}
+        options={{
+        tabBarLabel: 'Assistant',
+        header: () => (
+          <View style={[styles.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={styles.menuButton}>
+            <Icon name="menu" size={28} color="black" />
+          </TouchableOpacity>
+          </View>
+        ),
+        }}
+      />
+      <Tab.Screen
+        name="News"
+        component={NewsScreen}
+        options={{
+        tabBarLabel: 'News',
+        header: () => (
+          <View style={[styles.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={styles.menuButton}>
+            <Icon name="menu" size={28} color="black" />
+          </TouchableOpacity>
+          </View>
+        ),
+        }}
+      />
+      <Tab.Screen
+        name="Volunteers"
+        component={VolunteersScreen}
+        options={{
+        tabBarLabel: 'Volunteers',
+        headerShown: false, // No custom header for Volunteers
+        }}
+      />
       </Tab.Navigator>
     </>
   );
@@ -82,7 +117,7 @@ export default function BottomTabNavigator() {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: 'white', // Header background color
+    backgroundColor: 'red', // Header background color
     flexDirection: 'row', // Arrange items horizontally
     justifyContent: 'flex-end', // Align the button to the right
     alignItems: 'center', // Center the button vertically
