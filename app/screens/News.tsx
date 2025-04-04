@@ -1,10 +1,57 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking } from 'react-native';
+import { NEWS_API_KEY } from '@env'; // Import your API key from .env file
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { RootStackParamList } from '../components/Navigation/Drawer';
 
 export default function NewsScreen() {
+  const [news, setNews] = useState<any[]>([]);
+  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const response = await fetch(
+          `https://content.guardianapis.com/search?q=lebanon&api-key=${NEWS_API_KEY}&order-by=newest&page-size=30`
+        );
+        const data = await response.json(); // Parse the response as JSON
+        setNews(data.response.results); // Set the news articles to state
+      } catch (error) {
+        console.error('Error fetching news:', error); // Log any errors
+      }
+    };
+
+    fetchNews();
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>This is the news</Text>
+      <Text style={styles.headerIcons}>Provided By: The Guardian</Text>
+        
+      <View style={styles.menuButtonContainer}>
+        <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
+          <FontAwesome5 name="bars" size={25} color="black" />
+        </TouchableOpacity>
+      </View>
+      <FlatList style={{ marginTop: 60 }}
+        data={news}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View>
+              <Text style={styles.title}>{item.webTitle}</Text>
+              <Text style={styles.description}>{item.webDescription}</Text>
+            </View>
+            <View style={styles.readMoreContainer}>
+              <TouchableOpacity onPress={() => Linking.openURL(item.webUrl)}>
+                <Text style={styles.link}>Read more</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -12,13 +59,63 @@ export default function NewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
+    padding: 20,
   },
-  text: {
+  card: {
+    flexDirection: 'column', // Changed from 'row' to 'column'
+    justifyContent: 'flex-start',
+    backgroundColor: '#f9f9f9',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 10, // Add spacing between description and button
+  },
+  link: {
+    fontSize: 14,
+    color: '#007BFF',
+    textDecorationLine: 'underline',
+  },
+  readMoreContainer: {
+    marginTop: -20, // Added some space between content and button
+  },
+  menuButtonContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 10,
+  },
+  headerIcons: {
+    position: 'absolute',
+    top: 40,
+    left: 25,
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'black',
+    color: 'gray',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    padding: 10,
+    borderRadius: 50,
+    backgroundColor: '#f0f0f0',
+    marginRight: 10,
+  },
+  headerIconText: {
+    fontSize: 16,
+    color: '#333',
   },
 });

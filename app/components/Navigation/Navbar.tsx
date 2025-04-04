@@ -93,13 +93,7 @@ export default function BottomTabNavigator() {
         component={NewsScreen}
         options={{
         tabBarLabel: 'News',
-        header: () => (
-          <View style={[styles.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={styles.menuButton}>
-            <Icon name="menu" size={28} color="black" />
-          </TouchableOpacity>
-          </View>
-        ),
+        headerShown: false, // No custom header for Volunteers
         }}
       />
       <Tab.Screen

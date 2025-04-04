@@ -142,12 +142,10 @@ export default function MapScreen() {
   // --- Change Map Type ---
   const changeMapType = () => {
     if (mapType === 'standard') {
-      setMapType('satellite');
-    } else if (mapType === 'satellite') {
       setMapType('hybrid');
-    } else {
+    } else{
       setMapType('standard');
-    }
+    } 
   };
 
   // --- Main Render ---
@@ -168,7 +166,6 @@ export default function MapScreen() {
         showsUserLocation={true}
         provider="google"
         showsMyLocationButton={false}
-        showsBuildings={true}
         toolbarEnabled={false}
         mapType={mapType} // Pass mapType to the MapView
       >
