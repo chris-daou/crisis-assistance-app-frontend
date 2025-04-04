@@ -87,20 +87,20 @@ const styles = StyleSheet.create({
   },
   link: {
     fontSize: 14,
-    color: '#007BFF',
-    textDecorationLine: 'underline',
+    color: 'gray',
+    fontWeight: 'bold',
   },
   readMoreContainer: {
     marginTop: -20, // Added some space between content and button
   },
   menuButtonContainer: {
     position: 'absolute',
-    top: 40,
-    right: 10,
+    top: 46,
+    right: 20,
   },
   headerIcons: {
     position: 'absolute',
-    top: 40,
+    top: 45,
     left: 25,
     fontSize: 20,
     fontWeight: 'bold',
