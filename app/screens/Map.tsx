@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert, Text, TouchableOpacity, Linking } from 'react-native';
-import MapView, { Marker, Callout, Region } from 'react-native-maps';
-import { FontAwesome5 } from '@expo/vector-icons';
-import * as Location from 'expo-location'; // Import Expo Location for geolocation
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  Alert,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Linking,
+  Platform,
+} from 'react-native';
+import MapView, { Marker, Callout, CalloutSubview, Region } from 'react-native-maps';
+import {
+  FontAwesome5,
+  FontAwesome6,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
@@ -28,11 +43,24 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [activeButton, setActiveButton] = useState<'hospitals' | 'shelters' | 'freeFood' | 'none'>('none');
   const [fetchingInProgress, setFetchingInProgress] = useState(false);
-
   const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
 
   // Map Type state
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+
+  // For Android custom callout overlay
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+
+  // Helper: Wraps button actions so that if a callout is open, it is closed instead.
+  const withCalloutCheck = (action: () => void) => {
+    return () => {
+      if (selectedPlace) {
+        setSelectedPlace(null);
+        return;
+      }
+      action();
+    };
+  };
 
   // --- Fetch User Location ---
   useEffect(() => {
@@ -59,21 +87,18 @@ export default function MapScreen() {
   useEffect(() => {
     if (initialRegion) {
       setRegion(initialRegion);
-      // Only fetch the places when initial region is available
       if (activeButton !== 'none') {
         fetchPlaces(initialRegion.latitude, initialRegion.longitude);
       }
     }
-  }, [initialRegion, activeButton]);  // Now listens to activeButton as well
+  }, [initialRegion, activeButton]);
 
   // --- Fetch Places Based on Active Button ---
   const fetchPlaces = async (latitude: number, longitude: number) => {
     if (fetchingInProgress) return;
     setFetchingInProgress(true);
     let fetchedPlaces: Place[] = [];
-
-    // Clear previous places to avoid clutter
-    setPlaces([]);
+    setPlaces([]); // Clear previous places
 
     if (activeButton === 'hospitals') {
       fetchedPlaces = await fetchNearbyHospitals(latitude, longitude);
@@ -116,11 +141,15 @@ export default function MapScreen() {
     return data.status === 'OK' ? data.results : [];
   };
 
-  // --- Button Press Handler ---
-  const handleButtonPress = (button: 'hospitals' | 'shelters' | 'freeFood') => {
+  // --- Filter Button Handler ---
+  const handleFilterButtonPress = (button: 'hospitals' | 'shelters' | 'freeFood') => {
+    if (selectedPlace) {
+      setSelectedPlace(null);
+      return;
+    }
     if (activeButton === button) {
       setActiveButton('none');
-      setPlaces([]); // Clear places when button is deactivated
+      setPlaces([]); // Clear markers when button is deactivated
     } else {
       setActiveButton(button);
     }
@@ -141,11 +170,7 @@ export default function MapScreen() {
 
   // --- Change Map Type ---
   const changeMapType = () => {
-    if (mapType === 'standard') {
-      setMapType('hybrid');
-    } else{
-      setMapType('standard');
-    } 
+    setMapType(mapType === 'standard' ? 'hybrid' : 'standard');
   };
 
   // --- Main Render ---
@@ -162,42 +187,68 @@ export default function MapScreen() {
       <MapView
         style={styles.map}
         region={region ?? initialRegion ?? undefined}
+        onPress={() => {
+          if (selectedPlace) setSelectedPlace(null);
+        }}
         onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
         showsUserLocation={true}
         provider="google"
         showsMyLocationButton={false}
         toolbarEnabled={false}
-        mapType={mapType} // Pass mapType to the MapView
+        mapType={mapType}
       >
-        {renderMarkers(places)}
+        {renderMarkers(places, activeButton, setSelectedPlace)}
       </MapView>
 
-      {/* Recenter Button */}
+      {/* Android custom overlay for callout */}
+      {Platform.OS === 'android' && selectedPlace && (
+        <View style={styles.fullOverlay}>
+          <TouchableWithoutFeedback onPress={() => setSelectedPlace(null)}>
+            <View style={styles.fullOverlayBackground} />
+          </TouchableWithoutFeedback>
+          <View style={styles.calloutContainer}>
+            <TouchableWithoutFeedback onPress={() => { /* Swallow taps */ }}>
+              <View style={styles.customCallout}>
+                <Text style={styles.placeName}>{selectedPlace.name}</Text>
+                <Text style={styles.placeVicinity}>{selectedPlace.vicinity}</Text>
+                <TouchableOpacity
+                  style={styles.customNavButton}
+                  onPress={() => {
+                    const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.geometry.location.lat},${selectedPlace.geometry.location.lng}&travelmode=driving`;
+                    Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
+                  }}
+                >
+                  <Text style={styles.customNavButtonText}>Navigate Here</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </View>
+      )}
+
+      {/* Interactive Buttons – if a callout is open, these only dismiss it */}
       <View style={styles.recenterButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={recenterMap}>
+        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(recenterMap)}>
           <FontAwesome5 name="crosshairs" size={25} color="gray" />
         </TouchableOpacity>
       </View>
 
-      {/* Map Type Button */}
       <View style={styles.maptypeButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={changeMapType}>
+        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(changeMapType)}>
           <FontAwesome5 name="layer-group" size={25} color="gray" />
         </TouchableOpacity>
       </View>
 
-      {/* Menu Button */}
       <View style={styles.menuButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={() => navigation.toggleDrawer()}>
+        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(() => navigation.toggleDrawer())}>
           <FontAwesome5 name="bars" size={25} color="black" />
         </TouchableOpacity>
       </View>
 
-      {/* Filter Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, activeButton === 'hospitals' && styles.activeButton]}
-          onPress={() => handleButtonPress('hospitals')}
+          onPress={() => handleFilterButtonPress('hospitals')}
         >
           <Text style={[styles.buttonText, activeButton === 'hospitals' && styles.activeButtonText]}>
             Hospitals
@@ -205,7 +256,7 @@ export default function MapScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, activeButton === 'shelters' && styles.activeButton]}
-          onPress={() => handleButtonPress('shelters')}
+          onPress={() => handleFilterButtonPress('shelters')}
         >
           <Text style={[styles.buttonText, activeButton === 'shelters' && styles.activeButtonText]}>
             Shelters
@@ -213,7 +264,7 @@ export default function MapScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, activeButton === 'freeFood' && styles.activeButton]}
-          onPress={() => handleButtonPress('freeFood')}
+          onPress={() => handleFilterButtonPress('freeFood')}
         >
           <Text style={[styles.buttonText, activeButton === 'freeFood' && styles.activeButtonText]}>
             Food Org.
@@ -225,41 +276,57 @@ export default function MapScreen() {
 }
 
 // --- Helper Function to Render Markers ---
-const renderMarkers = (places: Place[]) => {
+const renderMarkers = (
+  places: Place[],
+  activeButton: 'hospitals' | 'shelters' | 'freeFood' | 'none',
+  setSelectedPlace: (place: Place) => void
+) => {
   return places.map((place, index) => {
-    let iconName = 'map-marker-alt';
-    let iconColor = 'red';
-
-    if (place.types.includes('hospital')) {
-      iconName = 'hospital';
-      iconColor = 'blue';
-    } else if (place.types.includes('shelter')) {
-      iconName = 'home';
-      iconColor = 'green';
-    } else if (place.types.includes('free food')) {
-      iconName = 'utensils';
-      iconColor = 'orange';
+    let iconElement;
+    if (activeButton === 'hospitals') {
+      iconElement = <MaterialCommunityIcons name="hospital-box" size={30} color="#323232" />;
+    } else if (activeButton === 'shelters') {
+      iconElement = <FontAwesome6 name="person-shelter" size={24} color="#323232" />;
+    } else if (activeButton === 'freeFood') {
+      iconElement = <MaterialIcons name="food-bank" size={35} color="#323232" />;
+    } else {
+      iconElement = <MaterialCommunityIcons name="map-marker-alert" size={24} color="#323232" />;
     }
 
     const openNavigation = () => {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat},${place.geometry.location.lng}&travelmode=driving`;
-      Linking.openURL(url);
+      Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
     };
 
     return (
-      <Marker key={index} coordinate={{ latitude: place.geometry.location.lat, longitude: place.geometry.location.lng }}>
-        <View style={styles.iconContainer}>
-          <FontAwesome5 name={iconName} size={24} color={iconColor} />
-        </View>
-        <Callout tooltip>
-          <View style={styles.callout}>
-            <Text style={styles.placeName}>{place.name}</Text>
-            <Text style={styles.placeVicinity}>{place.vicinity}</Text>
-            <TouchableOpacity style={styles.customNavButton} onPress={openNavigation}>
-              <Text style={styles.customNavButtonText}>Navigate Here</Text>
-            </TouchableOpacity>
-          </View>
-        </Callout>
+      <Marker
+        key={index}
+        coordinate={{
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
+        }}
+        onPress={() => {
+          if (Platform.OS === 'android') {
+            setSelectedPlace(place);
+          }
+        }}
+      >
+        <View>{iconElement}</View>
+        {Platform.OS === 'ios' && (
+          <Callout tooltip>
+            <View style={styles.callout}>
+              <View pointerEvents="none">
+                <Text style={styles.placeName}>{place.name}</Text>
+                <Text style={styles.placeVicinity}>{place.vicinity}</Text>
+              </View>
+              <CalloutSubview onPress={openNavigation}>
+                <TouchableOpacity style={styles.customNavButton}>
+                  <Text style={styles.customNavButtonText}>Navigate Here</Text>
+                </TouchableOpacity>
+              </CalloutSubview>
+            </View>
+          </Callout>
+        )}
       </Marker>
     );
   });
@@ -267,12 +334,8 @@ const renderMarkers = (places: Place[]) => {
 
 // --- Styles ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -296,24 +359,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     bottom: 55,
   },
-  activeButton: {
-    backgroundColor: 'gray',
-  },
-  buttonText: {
-    color: 'gray',
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  activeButtonText: {
-    color: '#EBEBEB',
-  },
-  iconContainer: {
-    backgroundColor: 'white',
-    padding: 4,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: 'red',
-  },
+  activeButton: { backgroundColor: 'gray' },
+  buttonText: { color: 'gray', fontSize: 18, textAlign: 'center' },
+  activeButtonText: { color: '#EBEBEB' },
   callout: {
     width: 200,
     padding: 10,
@@ -321,14 +369,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  placeName: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  placeVicinity: {
-    fontSize: 12,
-    color: 'gray',
-  },
+  placeName: { fontWeight: 'bold', fontSize: 14 },
+  placeVicinity: { fontSize: 12, color: 'gray' },
   customNavButton: {
     marginTop: 10,
     backgroundColor: '#f4f4f4',
@@ -338,14 +380,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  customNavButtonText: {
-    color: 'gray',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  customNavButtonText: { color: 'gray', fontSize: 14, fontWeight: 'bold' },
   recenterButtonContainer: {
     position: 'absolute',
-    top: 30,
+    top: 45,
     left: 10,
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
@@ -354,7 +392,7 @@ const styles = StyleSheet.create({
   },
   maptypeButtonContainer: {
     position: 'absolute',
-    top: 90,
+    top: 105,
     left: 10,
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
@@ -374,5 +412,33 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Full-screen overlay for Android callout
+  fullOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
+  },
+  fullOverlayBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calloutContainer: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  customCallout: {
+    width: '90%',
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+    elevation: 5,
   },
 });

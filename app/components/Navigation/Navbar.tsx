@@ -72,6 +72,7 @@ export default function BottomTabNavigator() {
         options={{
         tabBarLabel: 'Map',
         headerShown: false, // No custom header for Volunteers
+        unmountOnBlur: true, // Unmount the screen when not focused
         }}
       />
       <Tab.Screen
