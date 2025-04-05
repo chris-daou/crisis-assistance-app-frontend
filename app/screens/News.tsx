@@ -4,11 +4,12 @@ import { NEWS_API_KEY } from '@env'; // Import your API key from .env file
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { RootStackParamList } from '../components/Navigation/Drawer';
+// Updated import: use AppDrawerParamList from AppNavigator instead of RootStackParamList from Drawer
+import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
 
 export default function NewsScreen() {
   const [news, setNews] = useState<any[]>([]);
-  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -35,7 +36,8 @@ export default function NewsScreen() {
           <FontAwesome5 name="bars" size={25} color="black" />
         </TouchableOpacity>
       </View>
-      <FlatList style={{ marginTop: 60 }}
+      <FlatList 
+        style={{ marginTop: 60 }}
         data={news}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -64,7 +66,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   card: {
-    flexDirection: 'column', // Changed from 'row' to 'column'
+    flexDirection: 'column',
     justifyContent: 'flex-start',
     backgroundColor: '#f9f9f9',
     padding: 15,
@@ -84,7 +86,7 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 10, // Add spacing between description and button
+    marginBottom: 10,
   },
   link: {
     fontSize: 14,
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   readMoreContainer: {
-    marginTop: -20, // Added some space between content and button
+    marginTop: -20,
   },
   menuButtonContainer: {
     position: 'absolute',

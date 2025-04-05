@@ -4,10 +4,7 @@ import MapScreen from '../../screens/Map';
 import AssistantScreen from '../../screens/Assistant';
 import NewsScreen from '../../screens/News';
 import VolunteersScreen from '../../screens/Volunteers';
-import { TouchableOpacity, StyleSheet, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { useNavigation, DrawerActions } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabParamList = {
   Map: undefined;
@@ -19,8 +16,6 @@ type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export default function Navbar() {
-  const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -55,35 +50,18 @@ export default function Navbar() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
       <Tab.Screen
         name="Assistant"
         component={AssistantScreen}
         options={{
-          header: () => (
-            <View style={[styles.header, { paddingTop: insets.top }]}>
-              <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())} style={styles.menuButton}>
-                <Icon name="menu" size={28} color="black" />
-              </TouchableOpacity>
-            </View>
-          ),
+          headerShown: false,
+          unmountOnBlur: true,
+
         }}
       />
-      <Tab.Screen name="News" component={NewsScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Volunteers" component={VolunteersScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="News" component={NewsScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
+      <Tab.Screen name="Volunteers" component={VolunteersScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    backgroundColor: 'red',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-  },
-  menuButton: {
-    padding: 10,
-  },
-});

@@ -20,8 +20,9 @@ import {
 import * as Location from 'expo-location';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import { useNavigation } from '@react-navigation/native';
+// Updated navigation type: import from AppNavigator instead of Drawer
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { RootStackParamList } from '../components/Navigation/Drawer';
+import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
 
 interface Place {
   types: any;
@@ -43,7 +44,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [activeButton, setActiveButton] = useState<'hospitals' | 'shelters' | 'freeFood' | 'none'>('none');
   const [fetchingInProgress, setFetchingInProgress] = useState(false);
-  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
 
   // Map Type state
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
