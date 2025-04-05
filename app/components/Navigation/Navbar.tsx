@@ -4,11 +4,9 @@ import MapScreen from '../../screens/Map';
 import AssistantScreen from '../../screens/Assistant';
 import NewsScreen from '../../screens/News';
 import VolunteersScreen from '../../screens/Volunteers';
-import { TouchableOpacity, StyleSheet, View } from 'react-native'; // Remove unused imports
-import Icon from 'react-native-vector-icons/Feather'; // Import Feather icon
-import { useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { RootStackParamList } from './Drawer';
+import { TouchableOpacity, StyleSheet, View } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabParamList = {
@@ -20,105 +18,72 @@ type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-export default function BottomTabNavigator() {
-  const navigation = useNavigation<DrawerNavigationProp<RootStackParamList>>();
+export default function Navbar() {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
   return (
-    <>
-      {/* Custom header */}
-      <Tab.Navigator
-  screenOptions={({ route }) => ({
-    tabBarIcon: ({ color, size }) => {
-      let iconName: string = '';
-
-      if (route.name === 'Map') {
-        iconName = 'map';
-      } else if (route.name === 'Assistant') {
-        iconName = 'message-circle';
-      } else if (route.name === 'News') {
-        iconName = 'file-text';
-      } else if (route.name === 'Volunteers') {
-        iconName = 'users';
-      }
-
-      return <Icon name={iconName} size={size} color={color} />;
-    },
-    tabBarStyle: {
-      backgroundColor: '#EBEBEB', // Make the bottom part white
-      paddingBottom: 5,
-      paddingTop: 5,
-      height: 60,
-      borderTopLeftRadius: 20, // Round top left corner
-      borderTopRightRadius: 20, // Round top right corner
-      borderBottomLeftRadius: 0, // Keep bottom left corner sharp
-      borderBottomRightRadius: 0, // Keep bottom right corner sharp
-      overflow: 'hidden', // Ensure content respects rounded corners
-      position: 'absolute', // Position the tab bar absolutely at the bottom
-      bottom: 0, // Stick it to the bottom
-      left: 0, // Align to the left
-      right: 0, // Align to the right
-    },
-    tabBarActiveTintColor: 'black', // Active tab icon and label color
-    tabBarInactiveTintColor: 'gray', // Inactive tab icon and label color
-  })}
->
-
-
-
-      <Tab.Screen
-        name="Map"
-        component={MapScreen}
-        options={{
-        tabBarLabel: 'Map',
-        headerShown: false, // No custom header for Volunteers
-        unmountOnBlur: true, // Unmount the screen when not focused
-        }}
-      />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ color, size }) => {
+          let iconName = '';
+          if (route.name === 'Map') {
+            iconName = 'map';
+          } else if (route.name === 'Assistant') {
+            iconName = 'message-circle';
+          } else if (route.name === 'News') {
+            iconName = 'file-text';
+          } else if (route.name === 'Volunteers') {
+            iconName = 'users';
+          }
+          return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarStyle: {
+          backgroundColor: '#EBEBEB',
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          overflow: 'hidden',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+        },
+        tabBarActiveTintColor: 'black',
+        tabBarInactiveTintColor: 'gray',
+      })}
+    >
+      <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />
       <Tab.Screen
         name="Assistant"
         component={AssistantScreen}
         options={{
-        tabBarLabel: 'Assistant',
-        header: () => (
-          <View style={[styles.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={styles.menuButton}>
-            <Icon name="menu" size={28} color="black" />
-          </TouchableOpacity>
-          </View>
-        ),
+          header: () => (
+            <View style={[styles.header, { paddingTop: insets.top }]}>
+              <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())} style={styles.menuButton}>
+                <Icon name="menu" size={28} color="black" />
+              </TouchableOpacity>
+            </View>
+          ),
         }}
       />
-      <Tab.Screen
-        name="News"
-        component={NewsScreen}
-        options={{
-        tabBarLabel: 'News',
-        headerShown: false, // No custom header for Volunteers
-        }}
-      />
-      <Tab.Screen
-        name="Volunteers"
-        component={VolunteersScreen}
-        options={{
-        tabBarLabel: 'Volunteers',
-        headerShown: false, // No custom header for Volunteers
-        }}
-      />
-      </Tab.Navigator>
-    </>
+      <Tab.Screen name="News" component={NewsScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Volunteers" component={VolunteersScreen} options={{ headerShown: false }} />
+    </Tab.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: 'red', // Header background color
-    flexDirection: 'row', // Arrange items horizontally
-    justifyContent: 'flex-end', // Align the button to the right
-    alignItems: 'center', // Center the button vertically
-    paddingHorizontal: 15, // Add padding for spacing
+    backgroundColor: 'red',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 15,
   },
   menuButton: {
-    padding: 10, // Add touchable area around the icon
+    padding: 10,
   },
 });

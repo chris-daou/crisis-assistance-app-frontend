@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { View, Text } from "react-native";
-import DrawerNavigator from "./app/components/Navigation/Drawer";
+import RootNavigator from "./app/components/Navigation/RootNavigator";
 import api from "./api"; // Import Axios instance
 
 export default function App() {
@@ -19,8 +19,6 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <DrawerNavigator />
-    </NavigationContainer>
+    <RootNavigator />
   );
 }

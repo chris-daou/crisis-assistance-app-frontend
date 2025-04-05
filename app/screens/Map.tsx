@@ -196,6 +196,7 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         toolbarEnabled={false}
         mapType={mapType}
+        showsCompass={false}
       >
         {renderMarkers(places, activeButton, setSelectedPlace)}
       </MapView>

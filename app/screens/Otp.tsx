@@ -1,18 +1,22 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRoute, RouteProp, useNavigation, NavigationProp } from "@react-navigation/native";
-import { RootStackParamList } from '../components/Navigation/Drawer';
+// Use the AuthStackParamList from your AuthNavigator
+import { AuthStackParamList } from "../components/Navigation/AuthNavigator";
 import api from "../../api";
+import { AuthContext } from "../components/Navigation/AuthContext";
 
-type OtpScreenRouteProp = RouteProp<RootStackParamList, "Otp">;
+type OtpScreenRouteProp = RouteProp<AuthStackParamList, "Otp">;
 
 export default function Otp() {
   const route = useRoute<OtpScreenRouteProp>(); // Get the phone number from params
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { phone } = route.params as { phone: string };
+  const navigation = useNavigation<NavigationProp<AuthStackParamList>>();
+  const { phone } = route.params;
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<Array<TextInput | null>>([]);
+  
+  const { login } = useContext(AuthContext);
 
   const handleOtpChange = (index: number, value: string) => {
     if (/^\d*$/.test(value)) {
@@ -20,7 +24,7 @@ export default function Otp() {
       newOtp[index] = value;
       setOtp(newOtp);
 
-      // Move to next input field if digit is entered
+      // Move to next input field if a digit is entered
       if (value && index < 5) {
         inputRefs.current[index + 1]?.focus();
       }
@@ -39,32 +43,22 @@ export default function Otp() {
       return;
     }
 
-    // Simulate API verification request
     try {
-      // Replace this with your actual API call
       console.log(`Verifying OTP ${otpCode} for phone ${phone}`);
-
-
       const response = await api.post("auth/verifyotp", {
-        phone:"+961"+{phone},
-        otp:otpCode
-        
-    });
-    if(response.status===200){
-        navigation.navigate("Map" as never);
-    }
-    else{
-        Alert.alert("Signup Failed!");
-    }
-
-
-      // Navigate to next screen (Home or Dashboard)
-      navigation.navigate("Map" as never);
+        phone: "+961" + phone,
+        otp: otpCode,
+      });
+      if (response.status === 200) {
+        // OTP verified successfully; update auth state
+        login();
+      } else {
+        Alert.alert("OTP Verification Failed!", response.data.message || "Invalid OTP");
+      }
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Invalid OTP, please try again.");
     }
-    navigation.navigate("Map" as never);
   };
 
   return (
@@ -72,7 +66,6 @@ export default function Otp() {
       <Text style={styles.title}>Enter 6-digit OTP</Text>
       <Text style={styles.subtitle}>Sent to {phone}</Text>
 
-      {/* OTP Input Fields */}
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
           <TextInput
@@ -87,8 +80,14 @@ export default function Otp() {
         ))}
       </View>
 
-      {/* Submit Button */}
-      <TouchableOpacity style={[styles.button, otp.join("").length === 6 ? styles.activeButton : styles.disabledButton]} onPress={handleSubmit} disabled={otp.join("").length < 6}>
+      <TouchableOpacity
+        style={[
+          styles.button,
+          otp.join("").length === 6 ? styles.activeButton : styles.disabledButton,
+        ]}
+        onPress={handleSubmit}
+        disabled={otp.join("").length < 6}
+      >
         <Text style={styles.buttonText}>Submit</Text>
       </TouchableOpacity>
     </View>
