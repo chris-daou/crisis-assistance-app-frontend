@@ -1,9 +1,9 @@
 // AuthNavigator.tsx
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import Login from '../../screens/Login';
-import Signup from '../../screens/Signup';
-import OtpScreen from '../../screens/Otp';
+import Login from '../../screens/AuthScreens/Login';
+import Signup from '../../screens/AuthScreens/Signup';
+import OtpScreen from '../../screens/AuthScreens/Otp';
 
 export type AuthStackParamList = {
   Login: undefined;

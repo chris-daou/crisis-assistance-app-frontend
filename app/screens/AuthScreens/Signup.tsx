@@ -14,12 +14,12 @@ import {
   View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import api from '../../api'; // Import Axios instance
+import api from '../../../api'; // Import Axios instance
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 // Update the import to use the AuthNavigator's parameter list
-import { AuthStackParamList } from '../components/Navigation/AuthNavigator';
+import { AuthStackParamList } from '../../components/Navigation/AuthNavigator';
 
-const logo = require('../assets/logo.png');
+const logo = require('../../assets/logo.png');
 
 export default function SignupForm() {
   const [firstname, setFirstname] = useState("");

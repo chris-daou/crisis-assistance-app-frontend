@@ -2,9 +2,9 @@ import React, { useState, useRef, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRoute, RouteProp, useNavigation, NavigationProp } from "@react-navigation/native";
 // Use the AuthStackParamList from your AuthNavigator
-import { AuthStackParamList } from "../components/Navigation/AuthNavigator";
-import api from "../../api";
-import { AuthContext } from "../components/Navigation/AuthContext";
+import { AuthStackParamList } from "../../components/Navigation/AuthNavigator";
+import api from "../../../api";
+import { AuthContext } from "../../components/Navigation/AuthContext";
 
 type OtpScreenRouteProp = RouteProp<AuthStackParamList, "Otp">;
 

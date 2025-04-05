@@ -4,5 +4,9 @@
     "jsx": "react",
     "strict": true,
     "esModuleInterop": true
-  }
+  },
+  "include": [
+    "declarations.d.ts",
+    "app/**/*"
+  ]
 }

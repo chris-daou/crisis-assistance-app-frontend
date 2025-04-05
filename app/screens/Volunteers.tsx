@@ -8,12 +8,10 @@ import {
   Modal,
   TextInput,
   Alert,
-  Linking,
 } from 'react-native';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-// Updated import: use AppDrawerParamList from your new navigation file instead of RootStackParamList
 import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
 import api from '../../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,125 +56,20 @@ export default function Volunteers() {
     setVolunteers(sampleVolunteers);
   }, []);
 
-  const fetchConnections = async () => {
+  const handleRegisterVolunteer = async () => {
     try {
-      const response = await api.get('user/social/connections', {
-        headers: {
-          'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
-          Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
-        },
-      });
+      // Call the API to register the volunteer here
+      // Example: await api.post('/volunteer/register', { jobTitle, jobDescription });
 
-      if (response.status === 200) {
-        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
-        setVolunteers(response.data.accepted); // Adjust to match actual key in response
-      } else {
-        Alert.alert('Error', 'Failed to fetch network connections.');
-      }
+      Alert.alert('Registration Successful', 'Your volunteer registration has been submitted.');
+
+      // Close modal and reset state
+      setIsRegisterModalVisible(false);
+      setJobTitle('');
+      setJobDescription('');
     } catch (error) {
-      console.error('Error fetching connections:', (error as any).response?.data || error);
-      await AsyncStorage.setItem('token', JSON.stringify((error as any).response.data.token));
-      Alert.alert('Error', 'An error occurred while fetching connections.');
-    }
-  };
-
-  const fetchPendingRequests = async () => {
-    try {
-      const response = await api.get('user/social/connections', {
-        headers: {
-          'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
-          Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
-        },
-      });
-
-      if (response.status === 200) {
-        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
-        // Adjust based on actual response structure
-        // setRequests(response.data.pending);
-      } else {
-        Alert.alert('Error', 'Failed to fetch requests.');
-      }
-    } catch (error) {
-      await AsyncStorage.setItem('token', JSON.stringify((error as any).response.data.token));
-      console.error('Error fetching requests:', (error as any).response?.data || error);
-      Alert.alert('Error', 'An error occurred while fetching requests.');
-    }
-  };
-
-  const handleRemoveUser = (id: string) => {
-    setVolunteers(volunteers.filter(user => user.id !== id));
-  };
-
-  const handleAcceptRequest = async (user: Volunteer) => {
-    try {
-      console.log('Accepting request for user:', user);
-      const response = await api.post(
-        'user/social/handle-connection',
-        {
-          targetUserId: user.id,
-          action: 'accept',
-        },
-        {
-          headers: {
-            'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
-            Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
-          },
-        }
-      );
-
-      if (response.status === 200) {
-        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
-        await fetchConnections();
-        Alert.alert('Request Accepted', 'You have accepted the request successfully.');
-      } else {
-        Alert.alert('Error', response.data.message || 'Failed to accept request.');
-      }
-    } catch (error) {
-      await AsyncStorage.setItem('token', JSON.stringify((error as any).response.data.token));
-      console.error('Error accepting request:', (error as any).response?.data || error);
-      Alert.alert('Error', 'An error occurred while accepting the request.');
-    }
-  };
-
-  const handleRejectRequest = (id: string) => {
-    // Assuming you'll remove the request from a state variable called "requests"
-    // setRequests(requests.filter(req => req.id !== id));
-  };
-
-  const handleAddUserRequest = async () => {
-    try {
-      const response = await api.post(
-        'user/social/connect',
-        {
-          targetPhone: '+961' + jobTitle, // Assuming jobTitle holds phone? You might want to change this.
-        },
-        {
-          headers: {
-            'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
-            Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
-          },
-        }
-      );
-      console.log('Response:', response.data);
-      if (response.status === 200) {
-        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
-        Alert.alert('Request Sent', 'Your request has been sent successfully.');
-        setIsRegisterModalVisible(false);
-      } else {
-        Alert.alert('Request Failed', response.data.message || 'Failed to send request.');
-      }
-    } catch (error) {
-      console.error('Error sending request:', (error as any).response?.data || (error as any).message);
-      await AsyncStorage.setItem('token', JSON.stringify((error as any).response.data.token));
-      if ((error as any).status === 505) {
-        Alert.alert('Error sending request:', 'You already sent a request to that user. Wait for them to accept or reject it.');
-      } else if ((error as any).status === 507) {
-        Alert.alert('Error sending request:', 'You cannot send a request to yourself.');
-      } else if ((error as any).status === 404) {
-        Alert.alert('Error sending request:', 'User not found.');
-      } else {
-        Alert.alert('Error sending request:', 'An error occurred while sending the request.');
-      }
+      console.error('Error registering volunteer:', error);
+      Alert.alert('Registration Failed', 'An error occurred while registering as a volunteer.');
     }
   };
 
@@ -185,19 +78,9 @@ export default function Volunteers() {
       <View style={styles.container}>
         {/* Header Icons */}
         <View style={styles.headerIcons}>
-          <View style={styles.leftIcons}>
-            <TouchableOpacity onPress={() => setIsRegisterModalVisible(true)}>
-              <FontAwesome5 name="user-plus" size={24} color="gray" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                fetchPendingRequests();
-                // setIsRequestsModalVisible(true);
-              }}
-            >
-              <FontAwesome5 name="envelope" size={24} color="gray" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={() => setIsRegisterModalVisible(true)}>
+            <FontAwesome5 name="user-plus" size={24} color="gray" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
             <FontAwesome5 name="bars" size={24} color="black" />
           </TouchableOpacity>
@@ -215,8 +98,9 @@ export default function Volunteers() {
                 <Text style={styles.details}>{item.jobDescription}</Text>
               </View>
               <TouchableOpacity
-                // Uncomment to enable WhatsApp linking
-                // onPress={() => Linking.openURL(item.whatsappLink)}
+                // onPress={() => {
+                //   Linking.openURL(item.whatsappLink);
+                // }}
               >
                 <FontAwesome5 name="whatsapp" size={24} color="green" />
               </TouchableOpacity>
@@ -244,7 +128,10 @@ export default function Volunteers() {
               <TouchableOpacity style={styles.modalButton} onPress={handleRegisterVolunteer}>
                 <Text style={styles.modalButtonText}>Submit Registration</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setIsRegisterModalVisible(false)} style={styles.closeButton}>
+              <TouchableOpacity
+                onPress={() => setIsRegisterModalVisible(false)}
+                style={styles.closeButton}
+              >
                 <Text style={styles.closeText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -324,7 +211,7 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontWeight: 'bold',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 20, // Add padding to ensure dynamic width based on text length
   },
   closeButton: {
     alignItems: 'center',
@@ -334,9 +221,5 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  leftIcons: {
-    flexDirection: 'row',
-    gap: 15,
   },
 });

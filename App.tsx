@@ -1,6 +1,4 @@
 import React, { useEffect } from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { View, Text } from "react-native";
 import RootNavigator from "./app/components/Navigation/RootNavigator";
 import api from "./api"; // Import Axios instance
 
