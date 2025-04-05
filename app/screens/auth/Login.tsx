@@ -1,13 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { Alert, Image, Pressable, SafeAreaView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-const logo = require('../../assets/logo.png');
+const logo = require('../../assets/images/logo.png');
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 // If you have an AuthStackParamList defined for your authentication flow, use it here.
 import { AuthStackParamList } from '../../components/Navigation/AuthNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../../../api';
+import api from '../../services/api';
 // Import AuthContext from its new dedicated module
-import { AuthContext } from '../../components/Navigation/AuthContext';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function LoginForm() {
   const [click, setClick] = useState(false);

@@ -22,7 +22,7 @@ import { GOOGLE_MAPS_API_KEY } from '@env';
 import { useNavigation } from '@react-navigation/native';
 // Updated navigation type: import from AppNavigator instead of Drawer
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
+import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
 
 interface Place {
   types: any;

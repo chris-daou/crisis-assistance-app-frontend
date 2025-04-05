@@ -5,7 +5,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 // Updated import: use AppDrawerParamList from AppNavigator instead of RootStackParamList from Drawer
-import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
+import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
 
 export default function NewsScreen() {
   const [news, setNews] = useState<any[]>([]);

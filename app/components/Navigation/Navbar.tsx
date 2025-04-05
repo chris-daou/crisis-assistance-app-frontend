@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import MapScreen from '../../screens/Map';
-import AssistantScreen from '../../screens/Assistant';
-import NewsScreen from '../../screens/News';
-import VolunteersScreen from '../../screens/Volunteers';
+import MapScreen from '../../screens/main/Map';
+import AssistantScreen from '../../screens/main/Assistant';
+import NewsScreen from '../../screens/main/News';
+import VolunteersScreen from '../../screens/main/Volunteers';
 import Icon from 'react-native-vector-icons/Feather';
 
 type TabParamList = {

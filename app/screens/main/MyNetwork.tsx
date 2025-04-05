@@ -13,8 +13,8 @@ import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 // Update the import to use AppDrawerParamList from the new navigation file
-import { AppDrawerParamList } from '../components/Navigation/AppNavigator';
-import api from '../../api';
+import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
+import api from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

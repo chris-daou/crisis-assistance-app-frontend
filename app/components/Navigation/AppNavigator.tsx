@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import Navbar from './Navbar';
-import MyNetwork from '../../screens/MyNetwork';
+import MyNetwork from '../../screens/main/MyNetwork';
 import { TouchableOpacity, Text, View, Alert } from 'react-native';
-import { AuthContext } from './AuthContext';
+import { AuthContext } from '../../context/AuthContext';
 
 export type AppDrawerParamList = {
   Home: undefined;

@@ -5,9 +5,19 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "baseUrl": "./",
+    "paths": {
+      "@components/*": ["app/components/*"],
+      "@screens/*": ["app/screens/*"],
+      "@hooks/*": ["app/hooks/*"],
+      "@context/*": ["app/context/*"],
+      "@services/*": ["app/services/*"],
+      "@types/*": ["app/types/*"],
+      "@utils/*": ["utils/*"]
+    }
   },
   "include": [
-    "declarations.d.ts",
-    "app/**/*"
+    "app/**/*",
+    "app/types/**/*"
   ]
 }
