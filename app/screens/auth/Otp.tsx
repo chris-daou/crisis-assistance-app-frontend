@@ -1,7 +1,6 @@
 import React, { useState, useRef, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRoute, RouteProp, useNavigation, NavigationProp } from "@react-navigation/native";
-// Use the AuthStackParamList from your AuthNavigator
 import { AuthStackParamList } from "../../components/Navigation/AuthNavigator";
 import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
@@ -9,7 +8,7 @@ import { AuthContext } from "../../context/AuthContext";
 type OtpScreenRouteProp = RouteProp<AuthStackParamList, "Otp">;
 
 export default function Otp() {
-  const route = useRoute<OtpScreenRouteProp>(); // Get the phone number from params
+  const route = useRoute<OtpScreenRouteProp>();
   const navigation = useNavigation<NavigationProp<AuthStackParamList>>();
   const { phone } = route.params;
 
@@ -24,11 +23,9 @@ export default function Otp() {
       newOtp[index] = value;
       setOtp(newOtp);
 
-      // Move to next input field if a digit is entered
       if (value && index < 5) {
         inputRefs.current[index + 1]?.focus();
       }
-      // Move back if deleted
       if (!value && index > 0) {
         inputRefs.current[index - 1]?.focus();
       }
@@ -50,7 +47,6 @@ export default function Otp() {
         otp: otpCode,
       });
       if (response.status === 200) {
-        // OTP verified successfully; update auth state
         login();
       } else {
         Alert.alert("OTP Verification Failed!", response.data.message || "Invalid OTP");
@@ -80,16 +76,11 @@ export default function Otp() {
         ))}
       </View>
 
-      <TouchableOpacity
-        style={[
-          styles.button,
-          otp.join("").length === 6 ? styles.activeButton : styles.disabledButton,
-        ]}
-        onPress={handleSubmit}
-        disabled={otp.join("").length < 6}
-      >
-        <Text style={styles.buttonText}>Submit</Text>
-      </TouchableOpacity>
+      {otp.join("").length === 6 && (
+        <TouchableOpacity style={[styles.button, styles.activeButton]} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Submit</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -133,13 +124,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activeButton: {
-    backgroundColor: "red",
-  },
-  disabledButton: {
-    backgroundColor: "gray",
+    backgroundColor: "#ebebeb",
   },
   buttonText: {
-    color: "white",
+    color: "gray",
     fontSize: 18,
     fontWeight: "bold",
   },
