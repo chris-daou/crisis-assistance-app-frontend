@@ -16,7 +16,6 @@ type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export default function Navbar() {
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -48,20 +47,29 @@ export default function Navbar() {
         },
         tabBarActiveTintColor: 'black',
         tabBarInactiveTintColor: 'gray',
+        tabBarHideOnKeyboard: true,
       })}
     >
-      <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{ headerShown: false, unmountOnBlur: true }}
+      />
       <Tab.Screen
         name="Assistant"
         component={AssistantScreen}
-        options={{
-          headerShown: false,
-          unmountOnBlur: true,
-
-        }}
+        options={{ headerShown: false, unmountOnBlur: true }}
       />
-      <Tab.Screen name="News" component={NewsScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
-      <Tab.Screen name="Volunteers" component={VolunteersScreen} options={{ headerShown: false, unmountOnBlur: true, }} />
+      <Tab.Screen
+        name="News"
+        component={NewsScreen}
+        options={{ headerShown: false, unmountOnBlur: true }}
+      />
+      <Tab.Screen
+        name="Volunteers"
+        component={VolunteersScreen}
+        options={{ headerShown: false, unmountOnBlur: true }}
+      />
     </Tab.Navigator>
   );
 }
