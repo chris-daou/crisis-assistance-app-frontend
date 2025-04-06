@@ -2,12 +2,15 @@ import React, { useContext } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import Navbar from './Navbar';
 import MyNetwork from '../../screens/main/MyNetwork';
-import { TouchableOpacity, Text, View, Alert } from 'react-native';
+import ProfileScreen from '@screens/main/Profile';
+import { TouchableOpacity, Text, View, Alert, TextStyle, Linking } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { FontAwesome5, MaterialIcons, Feather } from '@expo/vector-icons';
 
 export type AppDrawerParamList = {
   Home: undefined;
   MyNetwork: undefined;
+  Profile: undefined;
 };
 
 const Drawer = createDrawerNavigator<AppDrawerParamList>();
@@ -15,41 +18,89 @@ const Drawer = createDrawerNavigator<AppDrawerParamList>();
 export default function AppNavigator() {
   const { logout } = useContext(AuthContext);
 
-  // Custom Drawer Content using props.state to determine the current route
   const CustomDrawerContent = (props: any) => {
     const { state, navigation } = props;
-    // Ensure state exists and then get the current route name
-    const currentRoute = state && state.routes && state.routes[state.index]
-      ? state.routes[state.index].name
-      : "";
-      
-    const getButtonStyle = (routeName: string) => {
-      return currentRoute === routeName ? { color: 'black' } : { color: 'gray' };
-    };
-
+    const currentRoute = state?.routes?.[state.index]?.name ?? '';
+  
+    const getButtonStyle = (routeName: string) => ({
+      color: currentRoute === routeName ? 'black' : 'gray',
+      fontWeight: currentRoute === routeName ? 'bold' : 'normal',
+      fontSize: 16,
+      marginLeft: 10,
+    });
+  
+    const menuItems = [
+      {
+        name: 'Home',
+        icon: <FontAwesome5 name="home" size={18} color={currentRoute === 'Home' ? 'black' : 'gray'} />,
+      },
+      {
+        name: 'MyNetwork',
+        icon: <FontAwesome5 name="users" size={18} color={currentRoute === 'MyNetwork' ? 'black' : 'gray'} />,
+      },
+      {
+        name: 'Profile',
+        icon: <MaterialIcons name="person" size={20} color={currentRoute === 'Profile' ? 'black' : 'gray'} />,
+      },
+    ];
+  
     return (
-      <View style={{ flex: 1, paddingTop: 15 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-          <Text style={{ padding: 20, ...getButtonStyle('Home') }}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('MyNetwork')}>
-          <Text style={{ padding: 20, ...getButtonStyle('MyNetwork') }}>My Network</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            Alert.alert('Logged Out', 'You have successfully logged out.', [
-              {
-                text: 'OK',
-                onPress: () => logout(),
-              },
-            ]);
-          }}
-        >
-          <Text style={{ padding: 20, color: 'gray' }}>Logout</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1, justifyContent: 'space-between', paddingTop: 15 }}>
+        <View>
+          {menuItems.map(({ name, icon }) => (
+            <TouchableOpacity
+              key={name}
+              onPress={() => navigation.navigate(name)}
+              style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}
+            >
+              {icon}
+              <Text style={getButtonStyle(name) as TextStyle}>{name === 'MyNetwork' ? 'My Network' : name}</Text>
+            </TouchableOpacity>
+          ))}
+  
+          {/* Donate Button */}
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://www.gofundme.com/f/lebanon-donation-fund')}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}
+          >
+            <FontAwesome5 name="donate" size={18} color="gray" />
+            <Text style={{ color: 'gray', fontSize: 16, marginLeft: 10 }}>Donate</Text>
+          </TouchableOpacity>
+  
+          {/* Logout Button */}
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert('Logged Out', 'You have successfully logged out.', [
+                { text: 'OK', onPress: () => logout() },
+              ]);
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}
+          >
+            <MaterialIcons name="logout" size={20} color="gray" />
+            <Text style={{ color: 'gray', fontSize: 16, marginLeft: 10 }}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+  
+        {/* Bottom Section */}
+        <View>
+          {/* Contact Us Button */}
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://your-placeholder-link.com')}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}
+          >
+            <Feather name="help-circle" size={20} color="gray" />
+            <Text style={{ color: 'gray', fontSize: 16, marginLeft: 10 }}>Contact Us</Text>
+          </TouchableOpacity>
+  
+          {/* Copyright */}
+          <Text style={{ textAlign: 'center', color: 'gray', fontSize: 12, paddingBottom: 10 }}>
+            © 2025 Chris Daou & Vicken Kendirjian
+          </Text>
+        </View>
       </View>
     );
   };
+  
 
   return (
     <Drawer.Navigator
@@ -77,6 +128,7 @@ export default function AppNavigator() {
     >
       <Drawer.Screen name="Home" component={Navbar} options={{ drawerLabel: 'Home' }} />
       <Drawer.Screen name="MyNetwork" component={MyNetwork} options={{ drawerLabel: 'My Network' }} />
+      <Drawer.Screen name="Profile" component={ProfileScreen} options={{ drawerLabel: 'Profile' }} />
     </Drawer.Navigator>
   );
 }

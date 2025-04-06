@@ -13,10 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import api from '../../services/api'; // Import Axios instance
+import { MaterialIcons, Feather } from '@expo/vector-icons';
+import api from '../../services/api';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-// Update the import to use the AuthNavigator's parameter list
 import { AuthStackParamList } from '../../components/Navigation/AuthNavigator';
 
 const logo = require('../../assets/images/logo.png');
@@ -26,6 +25,8 @@ export default function SignupForm() {
   const [lastname, setLastname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [bloodType, setBloodType] = useState("");
@@ -46,14 +47,13 @@ export default function SignupForm() {
     setIsDropdownOpen(!isDropdownOpen);
     if (!isDropdownOpen) {
       scrollViewRef.current?.scrollTo({
-        y: dropdownPosition - 50 + 300, // Adjust for some margin above
+        y: dropdownPosition - 50 + 300,
         animated: true,
       });
     }
   };
 
   const handleSignup = async () => {
-    console.log("Signup Data:", { firstname, lastname, password, confirmPassword, phoneNumber, bloodType });
     if (!firstname || !lastname || !password || !confirmPassword || !phoneNumber || !bloodType) {
       Alert.alert("Please fill all fields!");
       return;
@@ -62,7 +62,6 @@ export default function SignupForm() {
       Alert.alert("Passwords do not match!");
       return;
     }
-    // Capitalize the first letter of first and last names
     setFirstname(firstname.charAt(0).toUpperCase() + firstname.slice(1).toLowerCase());
     setLastname(lastname.charAt(0).toUpperCase() + lastname.slice(1).toLowerCase());
     try {
@@ -74,8 +73,6 @@ export default function SignupForm() {
         bloodType,
       });
       if (response.status === 200) {
-        console.log("✅ Signup Successful:", response.data);
-        // Navigate to OTP screen with the phone number
         navigation.navigate("Otp", { phone: "+961" + phoneNumber });
       } else {
         Alert.alert("Signup Failed!");
@@ -87,15 +84,8 @@ export default function SignupForm() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        ref={scrollViewRef}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} ref={scrollViewRef} keyboardShouldPersistTaps="handled">
         <SafeAreaView style={styles.container}>
           <Image source={logo} style={styles.image} resizeMode="contain" />
           <Text style={styles.title}>Signup</Text>
@@ -116,24 +106,34 @@ export default function SignupForm() {
               autoCorrect={false}
               autoCapitalize="none"
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Feather name={showPassword ? "eye-off" : "eye"} size={20} color="gray" />
+              </Pressable>
+            </View>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Confirm Password"
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="gray" />
+              </Pressable>
+            </View>
             <TextInput
               style={styles.input}
               placeholder="Phone Number"
@@ -145,21 +145,11 @@ export default function SignupForm() {
                 let cleanedInput = text.startsWith(prefix)
                   ? text.slice(prefix.length).replace(/\s/g, "")
                   : text.replace(/\s/g, "");
-                const validPrefixes = {
-                  "3": 6,
-                  "70": 6,
-                  "71": 6,
-                  "76": 6,
-                  "78": 6,
-                  "79": 6,
-                  "81": 6,
-                };
-                const isValidPartialPrefix = Object.keys(validPrefixes).some((validPrefix) =>
-                  validPrefix.startsWith(cleanedInput) || cleanedInput.startsWith(validPrefix)
+                const validPrefixes = { "3": 6, "70": 6, "71": 6, "76": 6, "78": 6, "79": 6, "81": 6 };
+                const isValidPartialPrefix = Object.keys(validPrefixes).some((p) =>
+                  p.startsWith(cleanedInput) || cleanedInput.startsWith(p)
                 );
-                const matchingPrefix = Object.keys(validPrefixes).find((validPrefix) =>
-                  cleanedInput.startsWith(validPrefix)
-                );
+                const matchingPrefix = Object.keys(validPrefixes).find((p) => cleanedInput.startsWith(p));
                 if (isValidPartialPrefix) {
                   const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
                   const maxLength = matchingPrefix ? validPrefixes[matchingPrefix as keyof typeof validPrefixes] : 6;
@@ -174,8 +164,6 @@ export default function SignupForm() {
               autoCorrect={false}
               autoCapitalize="none"
             />
-
-            {/* Blood Type Dropdown */}
             <TouchableOpacity
               style={[styles.input, styles.dropdown]}
               onPress={handleDropdownOpen}
@@ -191,32 +179,25 @@ export default function SignupForm() {
                 style={styles.arrowIcon}
               />
             </TouchableOpacity>
-
             {isDropdownOpen && (
               <View style={styles.dropdownMenu}>
                 {bloodTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    onPress={() => {
-                      setBloodType(type);
-                      setIsDropdownOpen(false);
-                    }}
-                  >
+                  <TouchableOpacity key={type} onPress={() => {
+                    setBloodType(type);
+                    setIsDropdownOpen(false);
+                  }}>
                     <Text style={styles.dropdownItem}>{type}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
           </View>
-
           <View style={styles.buttonView}>
             <Pressable style={styles.button} onPress={handleSignup}>
               <Text style={styles.buttonText}>SIGNUP</Text>
             </Pressable>
           </View>
-
           <View style={{ flexGrow: 1 }}></View>
-
           <Text style={styles.footerText}>
             Already Have An Account?
             <Text onPress={() => navigation.navigate("Login" as never)} style={styles.signup}>
@@ -244,8 +225,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textTransform: "uppercase",
     textAlign: "center",
-    paddingVertical: 40,
-    color: "red",
+    paddingBottom: 40,
+    color: "gray",
   },
   inputView: {
     gap: 15,
@@ -256,13 +237,28 @@ const styles = StyleSheet.create({
   input: {
     height: 50,
     paddingHorizontal: 20,
-    borderColor: "red",
+    borderColor: "gray",
     borderWidth: 1,
     borderRadius: 7,
     justifyContent: "center",
     backgroundColor: "transparent",
     fontSize: 16,
     color: "black",
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 7,
+    height: 50,
+    paddingHorizontal: 20,
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeIcon: {
+    marginLeft: 10,
   },
   dropdown: {
     justifyContent: "space-between",
@@ -271,7 +267,7 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     borderWidth: 1,
-    borderColor: "red",
+    borderColor: "gray",
     borderRadius: 7,
     marginTop: -10,
   },
@@ -294,16 +290,17 @@ const styles = StyleSheet.create({
     color: "black",
   },
   button: {
-    backgroundColor: "red",
+    backgroundColor: "#ebebeb",
     height: 45,
-    borderColor: "gray",
+    borderColor: "#ebebeb",
     borderWidth: 1,
     borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
+    top: 10,
   },
   buttonText: {
-    color: "white",
+    color: "gray",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -317,7 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   signup: {
-    color: "red",
+    color: "gray",
     fontSize: 13,
     fontWeight: "bold",
   },

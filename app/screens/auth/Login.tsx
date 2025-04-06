@@ -1,40 +1,42 @@
 import React, { useState, useContext } from 'react';
-import { Alert, Image, Pressable, SafeAreaView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
 const logo = require('../../assets/images/logo.png');
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-// If you have an AuthStackParamList defined for your authentication flow, use it here.
 import { AuthStackParamList } from '../../components/Navigation/AuthNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
-// Import AuthContext from its new dedicated module
 import { AuthContext } from '../../context/AuthContext';
+import { Feather } from '@expo/vector-icons';
 
 export default function LoginForm() {
   const [click, setClick] = useState(false);
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigation = useNavigation<NavigationProp<AuthStackParamList>>();
   const { login } = useContext(AuthContext);
 
-  // Function to handle login
   const handleLogin = async () => {
     try {
-      // Simulate a login API call
-      console.log("Logging in with:", { phoneNumber, password });
       const response = await api.post("auth/login", {
         phone: "+961" + phoneNumber,
         password
       });
       if (response.status === 200) {
-        console.log("Login successful:", response.data);
         await AsyncStorage.setItem('token', JSON.stringify(response.data.accessToken));
         await AsyncStorage.setItem('user', JSON.stringify(response.data.user._id));
-        // Instead of navigating to "Home", call login() to update the auth state
         login();
-        const savedUser = await AsyncStorage.getItem("token");
-        console.log("Saved user:", savedUser);
       } else {
         Alert.alert("Login Failed", response.data.message || "Invalid credentials");
       }
@@ -61,19 +63,13 @@ export default function LoginForm() {
               ? text.slice(prefix.length).replace(/\s/g, "")
               : text.replace(/\s/g, "");
             const validPrefixes = {
-              "3": 6,
-              "70": 6,
-              "71": 6,
-              "76": 6,
-              "78": 6,
-              "79": 6,
-              "81": 6,
+              "3": 6, "70": 6, "71": 6, "76": 6, "78": 6, "79": 6, "81": 6,
             };
-            const isValidPartialPrefix = Object.keys(validPrefixes).some((validPrefix) =>
-              validPrefix.startsWith(cleanedInput) || cleanedInput.startsWith(validPrefix)
+            const isValidPartialPrefix = Object.keys(validPrefixes).some((p) =>
+              p.startsWith(cleanedInput) || cleanedInput.startsWith(p)
             );
-            const matchingPrefix = Object.keys(validPrefixes).find((validPrefix) =>
-              cleanedInput.startsWith(validPrefix)
+            const matchingPrefix = Object.keys(validPrefixes).find((p) =>
+              cleanedInput.startsWith(p)
             );
             if (isValidPartialPrefix) {
               const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
@@ -89,21 +85,22 @@ export default function LoginForm() {
           autoCorrect={false}
           autoCapitalize="none"
         />
-        <TextInput
-          style={styles.input}
-          placeholder='PASSWORD'
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          autoCorrect={false}
-          autoCapitalize='none'
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="PASSWORD"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+            <Feather name={showPassword ? "eye-off" : "eye"} size={20} color="gray" />
+          </Pressable>
+        </View>
       </View>
       <View style={styles.rememberView}>
-        <View style={styles.switch}>
-          <Switch value={click} onValueChange={setClick} trackColor={{ true: "green", false: "gray" }} />
-          <Text style={styles.rememberText}>Remember Me</Text>
-        </View>
         <View>
           <Pressable onPress={() => Alert.alert("Forget Password!")}>
             <Text style={styles.forgetText}>Forgot Password?</Text>
@@ -117,7 +114,7 @@ export default function LoginForm() {
       </View>
       <View style={{ flexGrow: 1 }}></View>
       <Text style={styles.footerText}>
-        Don't Have an Account? 
+        Don't Have an Account?
         <Text onPress={() => navigation.navigate("Signup" as never)} style={styles.signup}> Sign Up</Text>
       </Text>
     </SafeAreaView>
@@ -126,7 +123,7 @@ export default function LoginForm() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, 
+    flex: 1,
     alignItems: "center",
     paddingTop: 70,
   },
@@ -140,7 +137,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
     paddingVertical: 40,
-    color: "red"
+    color: "gray"
   },
   inputView: {
     gap: 15,
@@ -151,9 +148,24 @@ const styles = StyleSheet.create({
   input: {
     height: 50,
     paddingHorizontal: 20,
-    borderColor: "red",
+    borderColor: "gray",
     borderWidth: 1,
     borderRadius: 7
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 7,
+    height: 50,
+    paddingHorizontal: 20,
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeIcon: {
+    marginLeft: 10,
   },
   rememberView: {
     width: "100%",
@@ -163,30 +175,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 8
   },
-  switch: {
-    flexDirection: "row",
-    gap: 1,
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  rememberText: {
-    fontSize: 13
-  },
   forgetText: {
     fontSize: 11,
-    color: "red"
+    color: "gray",
+    paddingVertical: 10,
   },
   button: {
-    backgroundColor: "red",
+    backgroundColor: "#ebebeb",
     height: 45,
-    borderColor: "gray",
+    borderColor: "#ebebeb",
     borderWidth: 1,
     borderRadius: 5,
     alignItems: "center",
     justifyContent: "center"
   },
   buttonText: {
-    color: "white",
+    color: "gray",
     fontSize: 18,
     fontWeight: "bold"
   },
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   signup: {
-    color: "red",
+    color: "gray",
     fontSize: 13,
     fontWeight: "bold"
   }
