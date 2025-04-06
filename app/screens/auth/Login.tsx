@@ -88,7 +88,7 @@ export default function LoginForm() {
         <View style={styles.passwordWrapper}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="PASSWORD"
+            placeholder="Password"
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
