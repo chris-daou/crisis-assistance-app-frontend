@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { OPENROUTER_API_KEY } from '@env';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { AppDrawerParamList } from '../../components/Navigation/AppNavigator'; // Adjust path as needed
+import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Assistant() {
@@ -41,6 +41,8 @@ Focus on empathy, reassurance, and helpfulness.
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
     const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
@@ -49,6 +51,12 @@ Focus on empathy, reassurance, and helpfulness.
       hideSub.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -131,16 +139,16 @@ Focus on empathy, reassurance, and helpfulness.
 
           {/* Chat Messages */}
           <ScrollView
-            style={styles.chat}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-start' }}
+            ref={scrollViewRef}
+            style={[styles.chat, { marginBottom: keyboardVisible ? 50 : 100 }]}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-start', paddingBottom: 10 }}
             keyboardShouldPersistTaps="handled"
           >
             {messages.length <= 1 && (
               <Text style={styles.placeholderText}>
-              Need help with mental health, safety, or an urgent situation in Lebanon? 
-              I'm here to support you — just type to begin.
-            </Text>
-            
+                Need help with mental health, safety, or an urgent situation in Lebanon? 
+                I'm here to support you — just type to begin.
+              </Text>
             )}
             {messages.slice(1).map((msg, idx) => (
               <View
@@ -192,8 +200,11 @@ const styles = StyleSheet.create({
     right: -2,
     top: 11,
   },
-
-  chat: { flex: 1, marginBottom: 10,top:50 },
+  chat: {
+    flex: 1,
+    top: 50,
+    // marginBottom removed, now handled dynamically in JSX
+  },
   placeholderText: {
     textAlign: 'center',
     color: 'gray',
