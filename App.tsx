@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import RootNavigator from "./app/components/Navigation/RootNavigator";
-import api from "./api"; // Import Axios instance
+import api from "./app/services/api"; // Import Axios instance
 
 export default function App() {
   useEffect(() => {
