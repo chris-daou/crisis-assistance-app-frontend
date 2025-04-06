@@ -54,33 +54,33 @@ export default function SignupForm() {
   };
 
   const handleSignup = async () => {
-    // if (!firstname || !lastname || !password || !confirmPassword || !phoneNumber || !bloodType) {
-    //   Alert.alert("Please fill all fields!");
-    //   return;
-    // }
-    // if (password !== confirmPassword) {
-    //   Alert.alert("Passwords do not match!");
-    //   return;
-    // }
-    // setFirstname(firstname.charAt(0).toUpperCase() + firstname.slice(1).toLowerCase());
-    // setLastname(lastname.charAt(0).toUpperCase() + lastname.slice(1).toLowerCase());
-    // try {
-    //   const response = await api.post("auth/signup", {
-    //     name: firstname,
-    //     lastname,
-    //     password,
-    //     phone: "+961" + phoneNumber,
-    //     bloodType,
-    //   });
-    //   if (response.status === 200) {
-    //     navigation.navigate("Otp", { phone: "+961" + phoneNumber });
-    //   } else {
-    //     Alert.alert("Signup Failed!");
-    //   }
-    // } catch (error) {
-    //   console.error("❌ Signup Failed:", error);
-    //   Alert.alert("Signup Failed!");
-    // }
+    if (!firstname || !lastname || !password || !confirmPassword || !phoneNumber || !bloodType) {
+      Alert.alert("Please fill all fields!");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords do not match!");
+      return;
+    }
+    setFirstname(firstname.charAt(0).toUpperCase() + firstname.slice(1).toLowerCase());
+    setLastname(lastname.charAt(0).toUpperCase() + lastname.slice(1).toLowerCase());
+    try {
+      const response = await api.post("auth/signup", {
+        name: firstname,
+        lastname,
+        password,
+        phone: "+961" + phoneNumber,
+        bloodType,
+      });
+      if (response.status === 200) {
+        navigation.navigate("Otp", { phone: "+961" + phoneNumber });
+      } else {
+        Alert.alert("Signup Failed!");
+      }
+    } catch (error) {
+      console.error("❌ Signup Failed:", error);
+      Alert.alert("Signup Failed!");
+    }
     navigation.navigate("Otp", { phone: "+961" + phoneNumber });
   };
 
