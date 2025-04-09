@@ -9,7 +9,8 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  Keyboard, // Import Keyboard from react-native
+  Keyboard,
+  Linking,
 } from 'react-native';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -32,38 +33,51 @@ export default function Volunteers() {
   const [isRegisterModalVisible, setIsRegisterModalVisible] = useState(false);
   const [jobTitle, setJobTitle] = useState('');
   const [jobDescription, setJobDescription] = useState('');
-  const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
   const [workType, setWorkType] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState(0);
 
   const scrollViewRef = useRef<ScrollView>(null);
-
+  const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
   const workTypes = ['Maintenance', 'Medical', 'Psychological', 'Logistics'];
 
-  // Sample volunteers for preview
-  const sampleVolunteers: Volunteer[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      jobTitle: 'Doctor',
-      jobDescription: 'Provides medical assistance to those in need.',
-      whatsappLink: 'https://wa.me/1234567890',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      jobTitle: 'Psychologist',
-      jobDescription: 'Offers psychological support for individuals affected by trauma.',
-      whatsappLink: 'https://wa.me/1234567891',
-    },
-  ];
-
   useEffect(() => {
-    // Fetch the volunteer data from the API here
-    // For now, using the sample data
-    setVolunteers(sampleVolunteers);
+    fetchVolunteers();
   }, []);
+
+  const fetchVolunteers = async () => {
+    try {
+      const response = await api.get("user/volunteer/volunteers-accepted", {
+        headers: {
+          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
+          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
+        },
+      });
+      console.log("Response from API:", response.data); // Log the response data
+
+      if (response.status === 200) {
+        // Save new token and transform volunteers data before setting state
+        await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
+        const volunteersData = response.data.data.map((v: any) => ({
+          id: v._id,
+          name: "Volunteer", // Default name; update if your API returns a name.
+          jobTitle: v.title,
+          jobDescription: v.description,
+          // Remove the '+' from contactDetails to form a valid WhatsApp link.
+          whatsappLink: `https://wa.me/${v.contactDetails.replace('+', '')}`,
+        }));
+        setVolunteers(volunteersData);
+      } else {
+        Alert.alert("Error", "Failed to fetch network connections.");
+      }
+    } catch (error) {
+      console.error("Error fetching volunteers:", (error as any).response?.data || error);
+      if ((error as any).response?.data?.token) {
+        await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
+      }
+      Alert.alert("Error", "An error occurred while fetching connections.");
+    }
+  };
 
   const handleRegisterVolunteer = async () => {
     try {
@@ -116,6 +130,13 @@ export default function Volunteers() {
         <FlatList
           data={volunteers}
           keyExtractor={(item) => item.id}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                There are no volunteers available at this time. Check back later!
+              </Text>
+            </View>
+          )}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View>
@@ -124,9 +145,18 @@ export default function Volunteers() {
                 <Text style={styles.details}>{item.jobDescription}</Text>
               </View>
               <TouchableOpacity
-                // onPress={() => {
-                //   Linking.openURL(item.whatsappLink);
-                // }}
+                onPress={() => {
+                  // Check if the WhatsApp URL can be opened
+                  Linking.canOpenURL(item.whatsappLink)
+                    .then((supported) => {
+                      if (supported) {
+                        return Linking.openURL(item.whatsappLink);
+                      } else {
+                        console.error("Don't know how to open URI: " + item.whatsappLink);
+                      }
+                    })
+                    .catch((err) => console.error('An error occurred', err));
+                }}
               >
                 <FontAwesome5 name="whatsapp" size={24} color="green" />
               </TouchableOpacity>
@@ -192,6 +222,7 @@ export default function Volunteers() {
               <TouchableOpacity
                 onPress={() => {
                   setIsRegisterModalVisible(false);
+                  setIsDropdownOpen(false);
                   setJobDescription('');
                   setJobTitle('');
                   setWorkType('');
@@ -318,4 +349,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
   },
+  // Styles for the empty volunteers placeholder
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 260,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: 'gray',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
 });
+
