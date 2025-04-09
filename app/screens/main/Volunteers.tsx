@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  ScrollView,
   Alert,
+  Keyboard, // Import Keyboard from react-native
 } from 'react-native';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +33,13 @@ export default function Volunteers() {
   const [jobTitle, setJobTitle] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
+  const [workType, setWorkType] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState(0);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const workTypes = ['Maintenance', 'Medical', 'Psychological', 'Logistics'];
 
   // Sample volunteers for preview
   const sampleVolunteers: Volunteer[] = [
@@ -73,6 +82,23 @@ export default function Volunteers() {
     }
   };
 
+  const handleDropdownOpen = () => {
+    // Dismiss the keyboard when opening the dropdown
+    if (!isDropdownOpen) {
+      Keyboard.dismiss();
+      scrollViewRef.current?.scrollTo({
+        y: dropdownPosition - 50 + 300,
+        animated: true,
+      });
+    }
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const handleDropdownLayout = (event: any) => {
+    const { y } = event.nativeEvent.layout;
+    setDropdownPosition(y);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.container}>
@@ -113,23 +139,63 @@ export default function Volunteers() {
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Register as a Volunteer</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.dropdown]}
+                onPress={handleDropdownOpen}
+                onLayout={handleDropdownLayout}
+              >
+                <Text style={[styles.placeholder, workType ? styles.selectedText : null]}>
+                  {workType || 'Select Work Type'}
+                </Text>
+                <MaterialIcons
+                  name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={24}
+                  color="black"
+                  style={styles.arrowIcon}
+                />
+              </TouchableOpacity>
+              {isDropdownOpen && (
+                <View style={styles.dropdownMenu}>
+                  {workTypes.map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => {
+                        setWorkType(type);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownItem}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               <TextInput
                 style={styles.input}
                 placeholder="Job Title"
                 value={jobTitle}
+                // Close dropdown when job title gains focus
+                onFocus={() => setIsDropdownOpen(false)}
                 onChangeText={setJobTitle}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Job Description"
                 value={jobDescription}
+                // Close dropdown when job description gains focus
+                onFocus={() => setIsDropdownOpen(false)}
                 onChangeText={setJobDescription}
               />
+
               <TouchableOpacity style={styles.modalButton} onPress={handleRegisterVolunteer}>
                 <Text style={styles.modalButtonText}>Submit Registration</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setIsRegisterModalVisible(false)}
+                onPress={() => {
+                  setIsRegisterModalVisible(false);
+                  setJobDescription('');
+                  setJobTitle('');
+                  setWorkType('');
+                }}
                 style={styles.closeButton}
               >
                 <Text style={styles.closeText}>Cancel</Text>
@@ -211,7 +277,7 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontWeight: 'bold',
     textAlign: 'center',
-    paddingHorizontal: 20, // Add padding to ensure dynamic width based on text length
+    paddingHorizontal: 20,
   },
   closeButton: {
     alignItems: 'center',
@@ -221,5 +287,35 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dropdown: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  arrowIcon: {
+    marginLeft: 10,
+    color: 'black',
+  },
+  placeholder: {
+    color: 'gray',
+    fontSize: 16,
+  },
+  dropdownMenu: {
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 7,
+    marginTop: -10,
+    marginBottom: 10,
+  },
+  selectedText: {
+    color: 'black',
+  },
+  dropdownItem: {
+    padding: 15,
+    fontSize: 16,
+    color: 'black',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
 });
