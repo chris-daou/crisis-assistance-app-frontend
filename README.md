@@ -92,7 +92,7 @@ NEWS_API_KEY=your_guardian_api_key
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/crisis-assistance-app-frontend.git
+git clone https://github.com/chris-daou/crisis-assistance-app-frontend.git
 cd crisis-assistance-app-frontend
 
 # Install dependencies
