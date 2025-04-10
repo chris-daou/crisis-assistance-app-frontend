@@ -36,6 +36,43 @@ export default function Volunteers() {
   const [workType, setWorkType] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState(0);
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false); 
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
+  <TextInput
+  style={styles.input}
+  placeholder="Phone Number"
+  value={isPhoneFocused || phoneNumber ? `🇱🇧  +961 ${phoneNumber}` : ""}
+  onFocus={() => setIsPhoneFocused(true)}
+  onBlur={() => setIsPhoneFocused(false)}
+  onChangeText={(text) => {
+    const prefix = "🇱🇧  +961 ";
+    let cleanedInput = text.startsWith(prefix)
+      ? text.slice(prefix.length).replace(/\s/g, "")
+      : text.replace(/\s/g, "");
+    const validPrefixes = {
+      "3": 6, "70": 6, "71": 6, "76": 6, "78": 6, "79": 6, "81": 6,
+    };
+    const isValidPartialPrefix = Object.keys(validPrefixes).some((p) =>
+      p.startsWith(cleanedInput) || cleanedInput.startsWith(p)
+    );
+    const matchingPrefix = Object.keys(validPrefixes).find((p) =>
+      cleanedInput.startsWith(p)
+    );
+    if (isValidPartialPrefix) {
+      const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
+      const maxLength = matchingPrefix ? validPrefixes[matchingPrefix as keyof typeof validPrefixes] : 6;
+      if (cleanedInput.length <= prefixLength + maxLength) {
+        setPhoneNumber(cleanedInput);
+      }
+    } else if (cleanedInput === "") {
+      setPhoneNumber("");
+    }
+  }}
+  keyboardType="phone-pad"
+  autoCorrect={false}
+  autoCapitalize="none"
+/>
 
   const scrollViewRef = useRef<ScrollView>(null);
   const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
@@ -215,6 +252,40 @@ export default function Volunteers() {
                 onFocus={() => setIsDropdownOpen(false)}
                 onChangeText={setJobDescription}
               />
+                      <TextInput
+          style={styles.input}
+          placeholder="Contact Details"
+          value={isPhoneFocused || phoneNumber ? `🇱🇧  +961 ${phoneNumber}` : ""}
+          onFocus={() => setIsPhoneFocused(true)}
+          onBlur={() => setIsPhoneFocused(false)}
+          onChangeText={(text) => {
+            const prefix = "🇱🇧  +961 ";
+            let cleanedInput = text.startsWith(prefix)
+              ? text.slice(prefix.length).replace(/\s/g, "")
+              : text.replace(/\s/g, "");
+            const validPrefixes = {
+              "3": 6, "70": 6, "71": 6, "76": 6, "78": 6, "79": 6, "81": 6,
+            };
+            const isValidPartialPrefix = Object.keys(validPrefixes).some((p) =>
+              p.startsWith(cleanedInput) || cleanedInput.startsWith(p)
+            );
+            const matchingPrefix = Object.keys(validPrefixes).find((p) =>
+              cleanedInput.startsWith(p)
+            );
+            if (isValidPartialPrefix) {
+              const prefixLength = matchingPrefix ? matchingPrefix.length : 0;
+              const maxLength = matchingPrefix ? validPrefixes[matchingPrefix as keyof typeof validPrefixes] : 6;
+              if (cleanedInput.length <= prefixLength + maxLength) {
+                setPhoneNumber(cleanedInput);
+              }
+            } else if (cleanedInput === "") {
+              setPhoneNumber("");
+            }
+          }}
+          keyboardType="phone-pad"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
 
               <TouchableOpacity style={styles.modalButton} onPress={handleRegisterVolunteer}>
                 <Text style={styles.modalButtonText}>Submit Registration</Text>
@@ -224,6 +295,7 @@ export default function Volunteers() {
                   setIsRegisterModalVisible(false);
                   setIsDropdownOpen(false);
                   setJobDescription('');
+                  setIsPhoneFocused(false);
                   setJobTitle('');
                   setWorkType('');
                 }}
@@ -280,7 +352,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     width: '85%',
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
   modalTitle: {
     fontSize: 20,

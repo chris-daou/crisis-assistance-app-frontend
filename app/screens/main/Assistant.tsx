@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     textAlign: 'center',
     color: 'gray',
-    marginVertical: 20,
+    marginVertical: 250,
   },
   bubble: {
     marginVertical: 6,

@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Linking,
+  ActivityIndicator,
+} from 'react-native';
 import { NEWS_API_KEY } from '@env'; // Import your API key from .env file
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-// Updated import: use AppDrawerParamList from AppNavigator instead of RootStackParamList from Drawer
 import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
 
 export default function NewsScreen() {
   const [news, setNews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
 
   useEffect(() => {
@@ -21,6 +29,8 @@ export default function NewsScreen() {
         setNews(data.response.results); // Set the news articles to state
       } catch (error) {
         console.error('Error fetching news:', error); // Log any errors
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -30,30 +40,37 @@ export default function NewsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.headerIcons}>Provided By: The Guardian</Text>
-        
+
       <View style={styles.menuButtonContainer}>
         <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
           <FontAwesome5 name="bars" size={25} color="black" />
         </TouchableOpacity>
       </View>
-      <FlatList 
-        style={{ marginTop: 60 }}
-        data={news}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View>
-              <Text style={styles.title}>{item.webTitle}</Text>
-              <Text style={styles.description}>{item.webDescription}</Text>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="gray" />
+        </View>
+      ) : (
+        <FlatList 
+          style={{ marginTop: 60 }}
+          data={news}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View>
+                <Text style={styles.title}>{item.webTitle}</Text>
+                <Text style={styles.description}>{item.webDescription}</Text>
+              </View>
+              <View style={styles.readMoreContainer}>
+                <TouchableOpacity onPress={() => Linking.openURL(item.webUrl)}>
+                  <Text style={styles.link}>Read more</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.readMoreContainer}>
-              <TouchableOpacity onPress={() => Linking.openURL(item.webUrl)}>
-                <Text style={styles.link}>Read more</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -111,14 +128,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerIcon: {
-    padding: 10,
-    borderRadius: 50,
-    backgroundColor: '#f0f0f0',
-    marginRight: 10,
-  },
-  headerIconText: {
-    fontSize: 16,
-    color: '#333',
+  loadingContainer: {
+    marginTop: 100,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -254,7 +254,11 @@ export default function MyNetwork() {
                 </TouchableOpacity>
               </View>
               <View style={{ alignItems: 'center', marginTop: 10 }}>
-                <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
+                <TouchableOpacity onPress={() => {
+                  setIsAddModalVisible(false);
+                  setPhoneNumber("");
+                  setIsPhoneFocused(false);
+                }}>
                   <Text style={styles.closeText}>Cancel</Text>
                 </TouchableOpacity>
               </View>

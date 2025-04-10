@@ -174,105 +174,110 @@ export default function MapScreen() {
     setMapType(mapType === 'standard' ? 'hybrid' : 'standard');
   };
 
-  // --- Main Render ---
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="blue" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        region={region ?? initialRegion ?? undefined}
-        onPress={() => {
-          if (selectedPlace) setSelectedPlace(null);
-        }}
-        onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
-        showsUserLocation={true}
-        provider="google"
-        showsMyLocationButton={false}
-        toolbarEnabled={false}
-        mapType={mapType}
-        showsCompass={false}
-      >
-        {renderMarkers(places, activeButton, setSelectedPlace)}
-      </MapView>
-
-      {/* Android custom overlay for callout */}
-      {Platform.OS === 'android' && selectedPlace && (
-        <View style={styles.fullOverlay}>
-          <TouchableWithoutFeedback onPress={() => setSelectedPlace(null)}>
-            <View style={styles.fullOverlayBackground} />
-          </TouchableWithoutFeedback>
-          <View style={styles.calloutContainer}>
-            <TouchableWithoutFeedback onPress={() => { /* Swallow taps */ }}>
-              <View style={styles.customCallout}>
-                <Text style={styles.placeName}>{selectedPlace.name}</Text>
-                <Text style={styles.placeVicinity}>{selectedPlace.vicinity}</Text>
-                <TouchableOpacity
-                  style={styles.customNavButton}
-                  onPress={() => {
-                    const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.geometry.location.lat},${selectedPlace.geometry.location.lng}&travelmode=driving`;
-                    Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
-                  }}
-                >
-                  <Text style={styles.customNavButtonText}>Navigate Here</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </View>
-      )}
-
-      {/* Interactive Buttons – if a callout is open, these only dismiss it */}
-      <View style={styles.recenterButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(recenterMap)}>
-          <FontAwesome5 name="crosshairs" size={25} color="gray" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.maptypeButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(changeMapType)}>
-          <FontAwesome5 name="layer-group" size={25} color="gray" />
-        </TouchableOpacity>
-      </View>
-
+      {/* Always show hamburger menu */}
       <View style={styles.menuButtonContainer}>
-        <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(() => navigation.toggleDrawer())}>
+        <TouchableOpacity style={styles.hamburgerButton} onPress={withCalloutCheck(() => navigation.toggleDrawer())}>
           <FontAwesome5 name="bars" size={25} color="black" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, activeButton === 'hospitals' && styles.activeButton]}
-          onPress={() => handleFilterButtonPress('hospitals')}
-        >
-          <Text style={[styles.buttonText, activeButton === 'hospitals' && styles.activeButtonText]}>
-            Hospitals
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, activeButton === 'shelters' && styles.activeButton]}
-          onPress={() => handleFilterButtonPress('shelters')}
-        >
-          <Text style={[styles.buttonText, activeButton === 'shelters' && styles.activeButtonText]}>
-            Shelters
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, activeButton === 'freeFood' && styles.activeButton]}
-          onPress={() => handleFilterButtonPress('freeFood')}
-        >
-          <Text style={[styles.buttonText, activeButton === 'freeFood' && styles.activeButtonText]}>
-            Food Org.
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Show Map and interactive buttons only when not loading */}
+      {!loading && (
+        <>
+          <MapView
+            style={styles.map}
+            region={region ?? initialRegion ?? undefined}
+            onPress={() => {
+              if (selectedPlace) setSelectedPlace(null);
+            }}
+            onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
+            showsUserLocation={true}
+            provider="google"
+            showsMyLocationButton={false}
+            toolbarEnabled={false}
+            mapType={mapType}
+            showsCompass={false}
+            rotateEnabled={false}
+          >
+            {renderMarkers(places, activeButton, setSelectedPlace)}
+          </MapView>
+
+          {/* Android custom overlay for callout */}
+          {Platform.OS === 'android' && selectedPlace && (
+            <View style={styles.fullOverlay}>
+              <TouchableWithoutFeedback onPress={() => setSelectedPlace(null)}>
+                <View style={styles.fullOverlayBackground} />
+              </TouchableWithoutFeedback>
+              <View style={styles.calloutContainer}>
+                <TouchableWithoutFeedback onPress={() => { /* Swallow taps */ }}>
+                  <View style={styles.customCallout}>
+                    <Text style={styles.placeName}>{selectedPlace.name}</Text>
+                    <Text style={styles.placeVicinity}>{selectedPlace.vicinity}</Text>
+                    <TouchableOpacity
+                      style={styles.customNavButton}
+                      onPress={() => {
+                        const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.geometry.location.lat},${selectedPlace.geometry.location.lng}&travelmode=driving`;
+                        Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
+                      }}
+                    >
+                      <Text style={styles.customNavButtonText}>Navigate Here</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </View>
+          )}
+
+          {/* Interactive Buttons */}
+          <View style={styles.recenterButtonContainer}>
+            <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(recenterMap)}>
+              <FontAwesome5 name="crosshairs" size={25} color="gray" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.maptypeButtonContainer}>
+            <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(changeMapType)}>
+              <FontAwesome5 name="layer-group" size={25} color="gray" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, activeButton === 'hospitals' && styles.activeButton]}
+              onPress={() => handleFilterButtonPress('hospitals')}
+            >
+              <Text style={[styles.buttonText, activeButton === 'hospitals' && styles.activeButtonText]}>
+                Hospitals
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, activeButton === 'shelters' && styles.activeButton]}
+              onPress={() => handleFilterButtonPress('shelters')}
+            >
+              <Text style={[styles.buttonText, activeButton === 'shelters' && styles.activeButtonText]}>
+                Shelters
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, activeButton === 'freeFood' && styles.activeButton]}
+              onPress={() => handleFilterButtonPress('freeFood')}
+            >
+              <Text style={[styles.buttonText, activeButton === 'freeFood' && styles.activeButtonText]}>
+                Food Org.
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {/* Show loading indicator overlay if loading */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="gray" />
+        </View>
+      )}
     </View>
   );
 }
@@ -338,10 +343,12 @@ const renderMarkers = (
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
-  loadingContainer: {
-    flex: 1,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   buttonContainer: {
     position: 'absolute',
@@ -390,7 +397,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
     padding: 0,
-    zIndex: 1,
+    zIndex: 2,
   },
   maptypeButtonContainer: {
     position: 'absolute',
@@ -399,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
     padding: 0,
-    zIndex: 1,
+    zIndex: 2,
   },
   menuButtonContainer: {
     position: 'absolute',
@@ -407,7 +414,11 @@ const styles = StyleSheet.create({
     right: 10,
     borderRadius: 100,
     padding: 0,
-    zIndex: 1,
+    zIndex: 3,
+  },
+  hamburgerButton: {
+    padding: 10,
+    borderRadius: 30,
   },
   recenterButton: {
     padding: 10,
@@ -415,7 +426,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Full-screen overlay for Android callout
   fullOverlay: {
     position: 'absolute',
     top: 0,
