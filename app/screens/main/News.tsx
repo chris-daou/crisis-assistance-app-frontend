@@ -26,6 +26,7 @@ export default function NewsScreen() {
           `https://content.guardianapis.com/search?q=lebanon&api-key=${NEWS_API_KEY}&order-by=newest&page-size=30`
         );
         const data = await response.json(); // Parse the response as JSON
+        
         setNews(data.response.results); // Set the news articles to state
       } catch (error) {
         console.error('Error fetching news:', error); // Log any errors

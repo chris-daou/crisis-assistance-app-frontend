@@ -4,6 +4,7 @@ import api from "./app/services/api"; // Import Axios instance
 
 export default function App() {
   useEffect(() => {
+    console.log("🚀 Starting App...");
     const testConnection = async () => {
       try {
         const response = await api.get("auth/test"); // Adjust route if needed
