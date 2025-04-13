@@ -8,11 +8,12 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native';
-import { NEWS_API_KEY } from '@env'; // Import your API key from .env file
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
+import api from '../../services/api'; // Import your API module
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function NewsScreen() {
   const [news, setNews] = useState<any[]>([]);
@@ -21,21 +22,25 @@ export default function NewsScreen() {
 
   useEffect(() => {
     const fetchNews = async () => {
-      try {
-        const response = await fetch(
-          `https://content.guardianapis.com/search?q=lebanon&api-key=${NEWS_API_KEY}&order-by=newest&page-size=30`
-        );
-        const data = await response.json(); // Parse the response as JSON
-        
-        setNews(data.response.results); // Set the news articles to state
-      } catch (error) {
-        console.error('Error fetching news:', error); // Log any errors
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNews();
+      try{
+        const response = await api.get('user/news/fetch', {
+          headers: {
+            "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
+            Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
+        }
+      });
+      setLoading(false);
+      console.log(response.data.data.response.results)
+      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
+      setNews(response.data.data.response.results); // Set the news articles to state
+    }catch (error) {
+      setLoading(false);
+      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
+      console.error('Error fetching news:', error); // Log any errors
+      setNews([]);
+    }
+  }
+  fetchNews();
   }, []);
 
   return (

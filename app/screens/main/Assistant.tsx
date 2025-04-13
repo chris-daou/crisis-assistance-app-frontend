@@ -11,16 +11,18 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { OPENROUTER_API_KEY } from '@env';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../services/api';
 
 export default function Assistant() {
   const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
 
+  // Initial system message
   const [messages, setMessages] = useState([
     {
       role: 'system',
@@ -37,9 +39,14 @@ Focus on empathy, reassurance, and helpfulness.
       `.trim(),
     },
   ]);
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // SESSION MANAGEMENT: sessionId is stored in component state.
+  // It starts as null and gets updated once the backend sends it.
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -67,23 +74,40 @@ Focus on empathy, reassurance, and helpfulness.
     setLoading(true);
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost',
-          'X-Title': 'Lebanon Crisis App',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-3.5-turbo',
-          messages: updatedMessages,
-        }),
-      });
+      // Session ID is now sent as query parameters in the config.
+      console.log('Session ID:', sessionId);
+      const response = await api.post(
+        'user/assistant/chat-reply',
+        { messages: updatedMessages }, // only messages go in the body
+        {
+          params: { sessionId }, // sessionId sent in query string
+          headers: {
+            'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
+            Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
+          },
+          // Treat any status code below 500 as a successful response
+          validateStatus: (status) => status < 500,
+        }
+      );
 
-      const data = await response.json();
+      console.log(response.data);
+      // Update token if present
+      if (response.data.token) {
+        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
+      }
 
-      if (!response.ok || !data?.choices?.[0]?.message) {
+      // Save sessionId if provided by the backend
+      if (response.data.sessionId) {
+        setSessionId(response.data.sessionId);
+      }
+
+      const data = response.data;
+      // Check for the new structure with "reply", or fallback to the previous structure.
+      if (data?.reply) {
+        setMessages([...updatedMessages, data.reply]);
+      } else if (data?.choices?.[0]?.message) {
+        setMessages([...updatedMessages, data.choices[0].message]);
+      } else {
         console.error('Fetch failed:', data);
         setMessages([
           ...updatedMessages,
@@ -92,12 +116,12 @@ Focus on empathy, reassurance, and helpfulness.
             content: 'Sorry, I could not process your request. Please try again later.',
           },
         ]);
-      } else {
-        const reply = data.choices[0].message;
-        setMessages([...updatedMessages, reply]);
       }
-    } catch (err) {
-      console.error('AI request failed:', err);
+    } catch (error: any) {
+      if (error?.response?.data?.token) {
+        await AsyncStorage.setItem('token', JSON.stringify(error.response.data.token));
+      }
+      console.error('Error accepting request:', error.response?.data || error);
       setMessages([
         ...updatedMessages,
         {
@@ -111,6 +135,8 @@ Focus on empathy, reassurance, and helpfulness.
   };
 
   const resetChat = () => {
+    // Reset chat and clear the sessionId
+    setSessionId(null);
     setMessages([
       {
         role: 'system',
@@ -151,10 +177,7 @@ Focus on empathy, reassurance, and helpfulness.
               </Text>
             )}
             {messages.slice(1).map((msg, idx) => (
-              <View
-                key={idx}
-                style={[styles.bubble, msg.role === 'user' ? styles.user : styles.assistant]}
-              >
+              <View key={idx} style={[styles.bubble, msg.role === 'user' ? styles.user : styles.assistant]}>
                 <Text style={styles.text}>{msg.content || '[empty]'}</Text>
               </View>
             ))}
@@ -203,7 +226,6 @@ const styles = StyleSheet.create({
   chat: {
     flex: 1,
     top: 50,
-    // marginBottom removed, now handled dynamically in JSX
   },
   placeholderText: {
     textAlign: 'center',
@@ -219,7 +241,6 @@ const styles = StyleSheet.create({
   user: { alignSelf: 'flex-end', backgroundColor: '#ebebeb' },
   assistant: { alignSelf: 'flex-start', backgroundColor: '#f2f2f2' },
   text: { color: '#333', fontSize: 15 },
-
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',

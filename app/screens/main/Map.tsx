@@ -18,11 +18,12 @@ import {
   MaterialIcons,
 } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { GOOGLE_MAPS_API_KEY } from '@env';
 import { useNavigation } from '@react-navigation/native';
 // Updated navigation type: import from AppNavigator instead of Drawer
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
+import api from '../../services/api'; // Import Axios instance
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Place {
   types: any;
@@ -115,31 +116,65 @@ export default function MapScreen() {
 
   // --- Fetch Nearby Hospitals ---
   const fetchNearbyHospitals = async (latitude: number, longitude: number) => {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&keyword=hospital-hopital&key=${GOOGLE_MAPS_API_KEY}`
-    );
-    const data = await response.json();
-    return data.status === 'OK'
-      ? data.results.filter((place: any) => place.types.includes('hospital'))
-      : [];
+    try {
+      const response = await api.get('user/geoloc/hospitals', {
+        params: { lat: latitude, lng: longitude },
+        headers: {
+          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
+          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
+        },
+      });
+      console.log(response.data);
+      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
+      // Return the hospitals array from the response; if it isn't there, return an empty array.
+      return Array.isArray(response.data.hospitals) ? response.data.hospitals : [];
+    } catch (error) {
+      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
+      console.error('Error fetching hospitals:', error);
+      return [];
+    }
   };
 
   // --- Fetch Nearby Shelters ---
   const fetchNearbyShelters = async (latitude: number, longitude: number) => {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=Beirut+Shelter&key=${GOOGLE_MAPS_API_KEY}`
-    );
-    const data = await response.json();
-    return data.status === 'OK' ? data.results : [];
+    try {
+      const response = await api.get('user/geoloc/shelters', {
+        params: { lat: latitude, lng: longitude },
+        headers: {
+          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
+          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
+        },
+      });
+      console.log(response.data);
+      // Return the shelters array from the response; if it isn't there, return an empty array.
+      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
+      return Array.isArray(response.data.shelters) ? response.data.shelters : [];
+    } catch (error) {
+      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
+      console.error('Error fetching shelters:', error);
+      return [];
+    }
   };
 
   // --- Fetch Nearby Free Food Organizations ---
   const fetchNearbyFreeFoodOrgs = async (latitude: number, longitude: number) => {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=50000&keyword=free+food+charity&key=${GOOGLE_MAPS_API_KEY}`
-    );
-    const data = await response.json();
-    return data.status === 'OK' ? data.results : [];
+    try {
+      const response = await api.get('user/geoloc/food-orgs', {
+        params: { lat: latitude, lng: longitude },
+        headers: {
+          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
+          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
+        },
+      });
+      console.log(response.data);
+      // Return the food orgs array from the response; if it isn't there, return an empty array.
+      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
+      return Array.isArray(response.data.foodOrgs) ? response.data.foodOrgs : [];
+    } catch (error) {
+      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
+      console.error('Error fetching food orgs:', error);
+      return [];
+    }
   };
 
   // --- Filter Button Handler ---
