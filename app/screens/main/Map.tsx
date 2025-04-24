@@ -10,7 +10,13 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import MapView, { Marker, Callout, CalloutSubview, Region } from 'react-native-maps';
+import MapView, {
+  Marker,
+  Callout,
+  CalloutSubview,
+  Region,
+  Circle,
+} from 'react-native-maps';
 import {
   FontAwesome5,
   FontAwesome6,
@@ -19,73 +25,88 @@ import {
 } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
-// Updated navigation type: import from AppNavigator instead of Drawer
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AppDrawerParamList } from '../../components/Navigation/AppNavigator';
-import api from '../../services/api'; // Import Axios instance
+import api from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Place {
   types: any;
   geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
+    location: { lat: number; lng: number };
   };
   name: string;
   vicinity: string;
 }
 
+interface DangerZone {
+  id: string;
+  center: { latitude: number; longitude: number };
+  radius: number;
+}
+
 export default function MapScreen() {
-  // --- State Variables ---
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [region, setRegion] = useState<Region | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [dangerZones, setDangerZones] = useState<DangerZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeButton, setActiveButton] = useState<'hospitals' | 'shelters' | 'freeFood' | 'none'>('none');
   const [fetchingInProgress, setFetchingInProgress] = useState(false);
   const navigation = useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
-
-  // Map Type state
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
-
-  // For Android custom callout overlay
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
-  // Helper: Wraps button actions so that if a callout is open, it is closed instead.
-  const withCalloutCheck = (action: () => void) => {
-    return () => {
-      if (selectedPlace) {
-        setSelectedPlace(null);
-        return;
-      }
-      action();
-    };
+  const withCalloutCheck = (action: () => void) => () => {
+    if (selectedPlace) {
+      setSelectedPlace(null);
+      return;
+    }
+    action();
   };
 
-  // --- Fetch User Location ---
+  // Fetch location & danger zones
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Permission to access location was denied');
+        Alert.alert('Permission Denied', 'Location access was denied');
         setLoading(false);
         return;
       }
-      const location = await Location.getCurrentPositionAsync({});
-      const regionData = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+      const loc = await Location.getCurrentPositionAsync({});
+      const regionData: Region = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       };
       setInitialRegion(regionData);
       setLoading(false);
+
+      // --- FIXED: pull from dangerZones & use _id for key
+      const token = (await AsyncStorage.getItem('token'))?.replace(/"/g, '') || '';
+      const userId = (await AsyncStorage.getItem('user'))?.replace(/"/g, '') || '';
+      try {
+        const resp = await api.get('user/geoloc/danger-zones', {
+          params: { lat: regionData.latitude, lng: regionData.longitude },
+          headers: { 'user-id': userId, Authorization: `Bearer ${token}` },
+        });
+        const zones: DangerZone[] = resp.data.dangerZones.map((z: any) => ({
+          id: z._id,
+          center: { latitude: z.lat, longitude: z.lng },
+          radius: z.radius,
+        }));
+        setDangerZones(zones);
+        if (resp.data.token) {
+          await AsyncStorage.setItem('token', JSON.stringify(resp.data.token));
+        }
+      } catch (err) {
+        console.error('Error fetching danger zones:', err);
+      }
     })();
   }, []);
 
-  // --- Fetch Places Once Initial Region is Set ---
   useEffect(() => {
     if (initialRegion) {
       setRegion(initialRegion);
@@ -95,140 +116,108 @@ export default function MapScreen() {
     }
   }, [initialRegion, activeButton]);
 
-  // --- Fetch Places Based on Active Button ---
-  const fetchPlaces = async (latitude: number, longitude: number) => {
+  // Place‐fetchers (unchanged)…
+  const fetchPlaces = async (lat: number, lng: number) => {
     if (fetchingInProgress) return;
     setFetchingInProgress(true);
-    let fetchedPlaces: Place[] = [];
-    setPlaces([]); // Clear previous places
+    setPlaces([]);
 
-    if (activeButton === 'hospitals') {
-      fetchedPlaces = await fetchNearbyHospitals(latitude, longitude);
-    } else if (activeButton === 'shelters') {
-      fetchedPlaces = await fetchNearbyShelters(latitude, longitude);
-    } else if (activeButton === 'freeFood') {
-      fetchedPlaces = await fetchNearbyFreeFoodOrgs(latitude, longitude);
-    }
+    let fetched: Place[] = [];
+    if (activeButton === 'hospitals') fetched = await fetchNearbyHospitals(lat, lng);
+    else if (activeButton === 'shelters') fetched = await fetchNearbyShelters(lat, lng);
+    else if (activeButton === 'freeFood') fetched = await fetchNearbyFreeFoodOrgs(lat, lng);
 
-    setPlaces(fetchedPlaces);
+    setPlaces(fetched);
     setFetchingInProgress(false);
   };
 
-  // --- Fetch Nearby Hospitals ---
-  const fetchNearbyHospitals = async (latitude: number, longitude: number) => {
+  const fetchNearbyHospitals = async (lat: number, lng: number) => {
     try {
-      const response = await api.get('user/geoloc/hospitals', {
-        params: { lat: latitude, lng: longitude },
-        headers: {
-          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
-          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
-        },
+      const token = (await AsyncStorage.getItem('token'))?.replace(/"/g, '') || '';
+      const userId = (await AsyncStorage.getItem('user'))?.replace(/"/g, '') || '';
+      const resp = await api.get('user/geoloc/hospitals', {
+        params: { lat, lng },
+        headers: { 'user-id': userId, Authorization: `Bearer ${token}` },
       });
-      console.log(response.data);
-      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
-      // Return the hospitals array from the response; if it isn't there, return an empty array.
-      return Array.isArray(response.data.hospitals) ? response.data.hospitals : [];
-    } catch (error) {
-      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
-      console.error('Error fetching hospitals:', error);
+      if (resp.data.token) await AsyncStorage.setItem('token', JSON.stringify(resp.data.token));
+      return Array.isArray(resp.data.hospitals) ? resp.data.hospitals : [];
+    } catch {
       return [];
     }
   };
 
-  // --- Fetch Nearby Shelters ---
-  const fetchNearbyShelters = async (latitude: number, longitude: number) => {
+  const fetchNearbyShelters = async (lat: number, lng: number) => {
     try {
-      const response = await api.get('user/geoloc/shelters', {
-        params: { lat: latitude, lng: longitude },
-        headers: {
-          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
-          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
-        },
+      const token = (await AsyncStorage.getItem('token'))?.replace(/"/g, '') || '';
+      const userId = (await AsyncStorage.getItem('user'))?.replace(/"/g, '') || '';
+      const resp = await api.get('user/geoloc/shelters', {
+        params: { lat, lng },
+        headers: { 'user-id': userId, Authorization: `Bearer ${token}` },
       });
-      console.log(response.data);
-      // Return the shelters array from the response; if it isn't there, return an empty array.
-      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
-      return Array.isArray(response.data.shelters) ? response.data.shelters : [];
-    } catch (error) {
-      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
-      console.error('Error fetching shelters:', error);
+      if (resp.data.token) await AsyncStorage.setItem('token', JSON.stringify(resp.data.token));
+      return Array.isArray(resp.data.shelters) ? resp.data.shelters : [];
+    } catch {
       return [];
     }
   };
 
-  // --- Fetch Nearby Free Food Organizations ---
-  const fetchNearbyFreeFoodOrgs = async (latitude: number, longitude: number) => {
+  const fetchNearbyFreeFoodOrgs = async (lat: number, lng: number) => {
     try {
-      const response = await api.get('user/geoloc/food-orgs', {
-        params: { lat: latitude, lng: longitude },
-        headers: {
-          "user-id": (await AsyncStorage.getItem("user"))?.replace(/"/g, ""),
-          Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
-        },
+      const token = (await AsyncStorage.getItem('token'))?.replace(/"/g, '') || '';
+      const userId = (await AsyncStorage.getItem('user'))?.replace(/"/g, '') || '';
+      const resp = await api.get('user/geoloc/food-orgs', {
+        params: { lat, lng },
+        headers: { 'user-id': userId, Authorization: `Bearer ${token}` },
       });
-      console.log(response.data);
-      // Return the food orgs array from the response; if it isn't there, return an empty array.
-      await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
-      return Array.isArray(response.data.foodOrgs) ? response.data.foodOrgs : [];
-    } catch (error) {
-      await AsyncStorage.setItem("token", JSON.stringify((error as any).response.data.token));
-      console.error('Error fetching food orgs:', error);
+      if (resp.data.token) await AsyncStorage.setItem('token', JSON.stringify(resp.data.token));
+      return Array.isArray(resp.data.foodOrgs) ? resp.data.foodOrgs : [];
+    } catch {
       return [];
     }
   };
 
-  // --- Filter Button Handler ---
-  const handleFilterButtonPress = (button: 'hospitals' | 'shelters' | 'freeFood') => {
+  const handleFilterButtonPress = (btn: 'hospitals' | 'shelters' | 'freeFood') => {
     if (selectedPlace) {
       setSelectedPlace(null);
       return;
     }
-    if (activeButton === button) {
+    if (activeButton === btn) {
       setActiveButton('none');
-      setPlaces([]); // Clear markers when button is deactivated
+      setPlaces([]);
     } else {
-      setActiveButton(button);
+      setActiveButton(btn);
     }
   };
 
-  // --- Recenter Map to User's Location ---
   const recenterMap = () => {
-    if (initialRegion) {
-      setRegion({
-        latitude: initialRegion.latitude,
-        longitude: initialRegion.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-      fetchPlaces(initialRegion.latitude, initialRegion.longitude);
-    }
+    if (!initialRegion) return;
+    setRegion({ ...initialRegion });
+    fetchPlaces(initialRegion.latitude, initialRegion.longitude);
   };
 
-  // --- Change Map Type ---
   const changeMapType = () => {
     setMapType(mapType === 'standard' ? 'hybrid' : 'standard');
   };
 
   return (
     <View style={styles.container}>
-      {/* Always show hamburger menu */}
       <View style={styles.menuButtonContainer}>
-        <TouchableOpacity style={styles.hamburgerButton} onPress={withCalloutCheck(() => navigation.toggleDrawer())}>
+        <TouchableOpacity
+          style={styles.hamburgerButton}
+          onPress={withCalloutCheck(() => navigation.toggleDrawer())}
+        >
           <FontAwesome5 name="bars" size={25} color="black" />
         </TouchableOpacity>
       </View>
 
-      {/* Show Map and interactive buttons only when not loading */}
       {!loading && (
         <>
           <MapView
             style={styles.map}
             region={region ?? initialRegion ?? undefined}
-            onPress={() => {
-              if (selectedPlace) setSelectedPlace(null);
-            }}
-            onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
-            showsUserLocation={true}
+            onPress={() => selectedPlace && setSelectedPlace(null)}
+            onRegionChangeComplete={r => setRegion(r)}
+            showsUserLocation
             provider="google"
             showsMyLocationButton={false}
             toolbarEnabled={false}
@@ -236,48 +225,103 @@ export default function MapScreen() {
             showsCompass={false}
             rotateEnabled={false}
           >
-            {renderMarkers(places, activeButton, setSelectedPlace)}
+            {/* Danger Zones */}
+            {dangerZones.map(zone => (
+              <Circle
+                key={zone.id}
+                center={zone.center}
+                radius={zone.radius}
+                fillColor="rgba(255,0,0,0.2)"
+                strokeColor="rgba(255,0,0,0.5)"
+              />
+            ))}
+
+            {/* POI Markers */}
+            {places.map((place, idx) => {
+              let icon;
+              if (activeButton === 'hospitals')
+                icon = <MaterialCommunityIcons name="hospital-box" size={30} color="#323232" />;
+              else if (activeButton === 'shelters')
+                icon = <FontAwesome6 name="person-shelter" size={24} color="#323232" />;
+              else if (activeButton === 'freeFood')
+                icon = <MaterialIcons name="food-bank" size={35} color="#323232" />;
+              else
+                icon = <MaterialCommunityIcons name="map-marker-alert" size={24} color="#323232" />;
+
+              const coords = {
+                latitude: place.geometry.location.lat,
+                longitude: place.geometry.location.lng,
+              };
+
+              const openNav = () => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.latitude},${coords.longitude}&travelmode=driving`;
+                Linking.openURL(url).catch(console.error);
+              };
+
+              return (
+                <Marker
+                  key={idx}
+                  coordinate={coords}
+                  onPress={() => Platform.OS === 'android' && setSelectedPlace(place)}
+                >
+                  <View>{icon}</View>
+                  {Platform.OS === 'ios' && (
+                    <Callout tooltip>
+                      <View style={styles.callout}>
+                        <View pointerEvents="none">
+                          <Text style={styles.placeName}>{place.name}</Text>
+                          <Text style={styles.placeVicinity}>{place.vicinity}</Text>
+                        </View>
+                        <CalloutSubview onPress={openNav}>
+                          <TouchableOpacity style={styles.customNavButton}>
+                            <Text style={styles.customNavButtonText}>Navigate Here</Text>
+                          </TouchableOpacity>
+                        </CalloutSubview>
+                      </View>
+                    </Callout>
+                  )}
+                </Marker>
+              );
+            })}
           </MapView>
 
-          {/* Android custom overlay for callout */}
+          {/* Android custom callout overlay */}
           {Platform.OS === 'android' && selectedPlace && (
             <View style={styles.fullOverlay}>
               <TouchableWithoutFeedback onPress={() => setSelectedPlace(null)}>
                 <View style={styles.fullOverlayBackground} />
               </TouchableWithoutFeedback>
               <View style={styles.calloutContainer}>
-                <TouchableWithoutFeedback onPress={() => { /* Swallow taps */ }}>
-                  <View style={styles.customCallout}>
-                    <Text style={styles.placeName}>{selectedPlace.name}</Text>
-                    <Text style={styles.placeVicinity}>{selectedPlace.vicinity}</Text>
-                    <TouchableOpacity
-                      style={styles.customNavButton}
-                      onPress={() => {
-                        const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.geometry.location.lat},${selectedPlace.geometry.location.lng}&travelmode=driving`;
-                        Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
-                      }}
-                    >
-                      <Text style={styles.customNavButtonText}>Navigate Here</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableWithoutFeedback>
+                <View style={styles.customCallout}>
+                  <Text style={styles.placeName}>{selectedPlace.name}</Text>
+                  <Text style={styles.placeVicinity}>{selectedPlace.vicinity}</Text>
+                  <TouchableOpacity
+                    style={styles.customNavButton}
+                    onPress={() => {
+                      const { lat, lng } = selectedPlace.geometry.location;
+                      Linking.openURL(
+                        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+                      ).catch(console.error);
+                    }}
+                  >
+                    <Text style={styles.customNavButtonText}>Navigate Here</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
 
-          {/* Interactive Buttons */}
+          {/* Controls */}
           <View style={styles.recenterButtonContainer}>
             <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(recenterMap)}>
               <FontAwesome5 name="crosshairs" size={25} color="gray" />
             </TouchableOpacity>
           </View>
-
           <View style={styles.maptypeButtonContainer}>
             <TouchableOpacity style={styles.recenterButton} onPress={withCalloutCheck(changeMapType)}>
               <FontAwesome5 name="layer-group" size={25} color="gray" />
             </TouchableOpacity>
           </View>
-
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, activeButton === 'hospitals' && styles.activeButton]}
@@ -307,7 +351,6 @@ export default function MapScreen() {
         </>
       )}
 
-      {/* Show loading indicator overlay if loading */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="gray" />
@@ -317,64 +360,6 @@ export default function MapScreen() {
   );
 }
 
-// --- Helper Function to Render Markers ---
-const renderMarkers = (
-  places: Place[],
-  activeButton: 'hospitals' | 'shelters' | 'freeFood' | 'none',
-  setSelectedPlace: (place: Place) => void
-) => {
-  return places.map((place, index) => {
-    let iconElement;
-    if (activeButton === 'hospitals') {
-      iconElement = <MaterialCommunityIcons name="hospital-box" size={30} color="#323232" />;
-    } else if (activeButton === 'shelters') {
-      iconElement = <FontAwesome6 name="person-shelter" size={24} color="#323232" />;
-    } else if (activeButton === 'freeFood') {
-      iconElement = <MaterialIcons name="food-bank" size={35} color="#323232" />;
-    } else {
-      iconElement = <MaterialCommunityIcons name="map-marker-alert" size={24} color="#323232" />;
-    }
-
-    const openNavigation = () => {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat},${place.geometry.location.lng}&travelmode=driving`;
-      Linking.openURL(url).catch((err) => console.error('Failed to open URL:', err));
-    };
-
-    return (
-      <Marker
-        key={index}
-        coordinate={{
-          latitude: place.geometry.location.lat,
-          longitude: place.geometry.location.lng,
-        }}
-        onPress={() => {
-          if (Platform.OS === 'android') {
-            setSelectedPlace(place);
-          }
-        }}
-      >
-        <View>{iconElement}</View>
-        {Platform.OS === 'ios' && (
-          <Callout tooltip>
-            <View style={styles.callout}>
-              <View pointerEvents="none">
-                <Text style={styles.placeName}>{place.name}</Text>
-                <Text style={styles.placeVicinity}>{place.vicinity}</Text>
-              </View>
-              <CalloutSubview onPress={openNavigation}>
-                <TouchableOpacity style={styles.customNavButton}>
-                  <Text style={styles.customNavButtonText}>Navigate Here</Text>
-                </TouchableOpacity>
-              </CalloutSubview>
-            </View>
-          </Callout>
-        )}
-      </Marker>
-    );
-  });
-};
-
-// --- Styles ---
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
@@ -431,7 +416,6 @@ const styles = StyleSheet.create({
     left: 10,
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
-    padding: 0,
     zIndex: 2,
   },
   maptypeButtonContainer: {
@@ -440,7 +424,6 @@ const styles = StyleSheet.create({
     left: 10,
     backgroundColor: '#F4F4F4',
     borderRadius: 100,
-    padding: 0,
     zIndex: 2,
   },
   menuButtonContainer: {
@@ -448,7 +431,6 @@ const styles = StyleSheet.create({
     top: 36,
     right: 10,
     borderRadius: 100,
-    padding: 0,
     zIndex: 3,
   },
   hamburgerButton: {

@@ -6,6 +6,8 @@ import ProfileScreen from '@screens/main/Profile';
 import { TouchableOpacity, Text, View, Alert, TextStyle, Linking } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { FontAwesome5, MaterialIcons, Feather } from '@expo/vector-icons';
+import  api from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type AppDrawerParamList = {
   Home: undefined;
@@ -17,6 +19,26 @@ const Drawer = createDrawerNavigator<AppDrawerParamList>();
 
 export default function AppNavigator() {
   const { logout } = useContext(AuthContext);
+
+  const handleLogout = async () => {
+    try{
+      const userId = (await AsyncStorage.getItem('user'))?.replace(/"/g, '');
+      const token = (await AsyncStorage.getItem('token'))?.replace(/"/g, '');
+      const response = await api.get('auth/logout', {
+        headers: { 'user-id': userId, Authorization: `Bearer ${token}` }
+      });
+      console.log('Auth response:', response.data);
+    }
+    catch (error) { 
+      console.error('Error during logout:', error);
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
+    finally{      
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      logout();
+    }
+  }
 
   const CustomDrawerContent = (props: any) => {
     const { state, navigation } = props;
@@ -70,8 +92,8 @@ export default function AppNavigator() {
           {/* Logout Button */}
           <TouchableOpacity
             onPress={() => {
-              Alert.alert('Logged Out', 'You have successfully logged out.', [
-                { text: 'OK', onPress: () => logout() },
+              Alert.alert('Logged Out', 'You are about to be logged out.', [
+                { text: 'OK', onPress: () => handleLogout() },
               ]);
             }}
             style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}
@@ -112,6 +134,7 @@ export default function AppNavigator() {
         drawerActiveBackgroundColor: '#EBEBEB',
         drawerActiveTintColor: '#000',
         drawerInactiveTintColor: 'gray',
+        unmountOnBlur: true,
         drawerStyle: {
           backgroundColor: '#EBEBEB',
           borderTopLeftRadius: 20,

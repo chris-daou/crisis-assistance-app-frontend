@@ -42,11 +42,12 @@ export default function Otp() {
 
     try {
       console.log(`Verifying OTP ${otpCode} for phone ${phone}`);
+      console.log(`Verifying OTP ${Number(otpCode)} for phone +961${phone}`);
       const response = await api.post("auth/verifyotp", {
-        phone: "+961" + phone,
-        otp: otpCode,
+        phone: phone,
+        otp: Number(otpCode),
       });
-      if (response.status === 200) {
+      if (response.status === 201) {
         login();
       } else {
         Alert.alert("OTP Verification Failed!", response.data.message || "Invalid OTP");

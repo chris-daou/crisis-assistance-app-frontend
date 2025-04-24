@@ -90,17 +90,15 @@ export default function Volunteers() {
           Authorization: `Bearer ${(await AsyncStorage.getItem("token"))?.replace(/"/g, "")}`,
         },
       });
-      console.log("Response from API:", response.data); // Log the response data
+      console.log("Response from API:", response.data);
 
       if (response.status === 200) {
-        // Save new token and transform volunteers data before setting state
         await AsyncStorage.setItem("token", JSON.stringify(response.data.token));
         const volunteersData = response.data.data.map((v: any) => ({
           id: v._id,
-          name: "Volunteer", // Default name; update if your API returns a name.
+          name: v.userId.name+" " + v.userId.lastname,
           jobTitle: v.title,
           jobDescription: v.description,
-          // Remove the '+' from contactDetails to form a valid WhatsApp link.
           whatsappLink: `https://wa.me/${v.contactDetails.replace('+', '')}`,
         }));
         setVolunteers(volunteersData);
@@ -118,8 +116,32 @@ export default function Volunteers() {
 
   const handleRegisterVolunteer = async () => {
     try {
-      // Call the API to register the volunteer here
-      // Example: await api.post('/volunteer/register', { jobTitle, jobDescription });
+      
+      if (jobTitle=='' || jobDescription=='' || workType=='' || phoneNumber=='') {
+        Alert.alert('Error', 'Please fill in all fields.');
+        return;
+      }
+      const response = await api.post(
+        'user/volunteer/apply',
+        {
+          title: jobTitle,
+          description: jobDescription,
+          service: workType,
+          contactDetails: phoneNumber,
+        },
+        {
+          headers: {
+            'user-id': (await AsyncStorage.getItem('user'))?.replace(/"/g, ''),
+            Authorization: `Bearer ${(await AsyncStorage.getItem('token'))?.replace(/"/g, '')}`,
+          },
+        }
+      );
+      console.log('Response from API:', response.data);
+
+      // Save new token if present
+      if (response.data.token) {
+        await AsyncStorage.setItem('token', JSON.stringify(response.data.token));
+      }
 
       Alert.alert('Registration Successful', 'Your volunteer registration has been submitted.');
 
@@ -127,11 +149,18 @@ export default function Volunteers() {
       setIsRegisterModalVisible(false);
       setJobTitle('');
       setJobDescription('');
+      setWorkType('');
+      setIsDropdownOpen(false);
+      setPhoneNumber('');
     } catch (error) {
       console.error('Error registering volunteer:', error);
       Alert.alert('Registration Failed', 'An error occurred while registering as a volunteer.');
+      //save new token if present
+      if ((error as any).response?.data?.token) {
+        await AsyncStorage.setItem('token', JSON.stringify((error as any).response.data.token));
     }
   };
+}
 
   const handleDropdownOpen = () => {
     // Dismiss the keyboard when opening the dropdown
